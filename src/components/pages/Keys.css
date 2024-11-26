@@ -1,0 +1,31 @@
+.key-textarea {
+  min-height: 200px;
+  font-family: monospace;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.key-display {
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  background-color: hsl(var(--muted));
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.key-display.blurred {
+  filter: blur(3px);
+  transition: filter 0.2s ease-in-out;
+}
+
+.key-display.blurred:hover {
+  filter: blur(0);
+}
+
+.key-label {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 0.25rem;
+  display: block;
+} 
