@@ -28,7 +28,7 @@ function App() {
                     fill="none"
                     stroke="currentColor"
                   >
-                    {/* Main can body - outline */}
+                    {/* Main tuna can body - outline */}
                     <path 
                       d="M3 7c0-1.657 4.03-3 9-3s9 1.343 9 3v10c0 1.657-4.03 3-9 3s-9-1.343-9-3V7z" 
                       strokeWidth="1.5"
