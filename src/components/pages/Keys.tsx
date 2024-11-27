@@ -208,14 +208,14 @@ const Keys = () => {
               <TooltipContent className="w-80">
                 <div className="space-y-2">
                   <h4 className="font-medium">Import Key Pair</h4>
-                  <p className="text-sm">
-                    Upload a ZIP file containing:
+                  <div className="text-sm">
+                    <p>Upload a ZIP file containing:</p>
                     <ul className="list-disc list-inside mt-1">
                       <li>public_key.pem</li>
                       <li>private_key.pem</li>
                     </ul>
-                    The key pair name will be taken from the ZIP filename.
-                  </p>
+                    <p>The key pair name will be taken from the ZIP filename.</p>
+                  </div>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -288,13 +288,13 @@ const Keys = () => {
                         <TooltipContent className="w-80" onClick={(e) => e.stopPropagation()}>
                           <div className="space-y-2">
                             <h4 className="font-medium">Export Key Pair</h4>
-                            <p className="text-sm">
-                              Downloads '{pair.name}.zip' containing:
+                            <div className="text-sm">
+                              <p>Downloads '{pair.name}.zip' containing:</p>
                               <ul className="list-disc list-inside mt-1">
                                 <li>public_key.pem</li>
                                 <li>private_key.pem</li>
                               </ul>
-                            </p>
+                            </div>
                           </div>
                         </TooltipContent>
                       </Tooltip>
