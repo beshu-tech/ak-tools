@@ -10,7 +10,7 @@ import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMeta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { PageHeader } from '../ui/page-header';
 import { ValidationStatus } from '../activationkey/validation-status';
-import './ActivationkeyEditor.css';
+import './ActivationKeyEditor.css';
 import { useTheme } from '../../hooks/use-theme';
 
 const ActivationKeyEditor = () => {
