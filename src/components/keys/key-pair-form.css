@@ -1,0 +1,6 @@
+.key-textarea {
+  min-height: 200px;
+  font-family: monospace;
+  white-space: pre;
+  overflow-x: auto;
+} 

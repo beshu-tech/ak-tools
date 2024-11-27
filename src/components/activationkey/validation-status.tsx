@@ -31,7 +31,7 @@ export const ValidationStatus: React.FC<ValidationStatusProps> = ({ validation }
           <p>
             {validation.isValid 
               ? "Signature is valid" 
-              : validation.errors?.message || "Invalid signature"}
+              : validation.error || "Cannot validate signature"}
           </p>
         </TooltipContent>
       </Tooltip>

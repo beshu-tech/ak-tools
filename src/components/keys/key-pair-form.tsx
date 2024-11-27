@@ -1,11 +1,10 @@
 import React from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { Label } from '../ui/label';
 import { KeyPair } from '../../types/activationKey';
 import { Wand2 } from 'lucide-react';
-import '../pages/Keys.css';
+import { KeyTextarea } from './key-textarea';
+import './key-pair-form.css';
 
 export interface KeyPairFormProps {
   mode: 'create' | 'edit';
@@ -25,53 +24,40 @@ export const KeyPairForm: React.FC<KeyPairFormProps> = ({
   onGenerateKeys
 }) => {
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          value={keyPair.name || ''}
-          onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="My Key Pair"
-        />
-      </div>
+    <div className="space-y-6">
+      <Input
+        id="name"
+        value={keyPair.name || ''}
+        onChange={(e) => onChange({ ...keyPair, name: e.target.value })}
+        placeholder="Name"
+      />
 
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <Label htmlFor="publicKey">Public Key (PEM)</Label>
-          {mode === 'create' && onGenerateKeys && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onGenerateKeys}
-            >
-              <Wand2 className="h-4 w-4 mr-2" />
-              Generate Random Keys in your browser
-            </Button>
-          )}
-        </div>
-        <Textarea
-          id="publicKey"
-          value={keyPair.publicKey || ''}
-          onChange={(e) => onChange({ publicKey: e.target.value })}
-          placeholder="-----BEGIN PUBLIC KEY-----"
-          className="key-textarea"
-        />
-      </div>
+      <KeyTextarea
+        id="publicKey"
+        value={keyPair.publicKey || ''}
+        onChange={(value) => onChange({ ...keyPair, publicKey: value })}
+        placeholder="Public Key (PEM)"
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="privateKey">Private Key (PEM)</Label>
-        <Textarea
-          id="privateKey"
-          value={keyPair.privateKey || ''}
-          onChange={(e) => onChange({ privateKey: e.target.value })}
-          placeholder="-----BEGIN PRIVATE KEY-----"
-          className="key-textarea"
-        />
-      </div>
+      <KeyTextarea
+        id="privateKey"
+        value={keyPair.privateKey || ''}
+        onChange={(value) => onChange({ ...keyPair, privateKey: value })}
+        placeholder="Private Key (PEM)"
+      />
 
-      <div className="flex justify-end space-x-2">
+      <div className="flex justify-end items-center space-x-2">
+        {mode === 'create' && onGenerateKeys && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onGenerateKeys}
+            className="mr-auto"
+          >
+            <Wand2 className="h-4 w-4 mr-2" />
+            Generate Random Keys
+          </Button>
+        )}
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>

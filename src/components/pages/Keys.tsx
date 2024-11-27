@@ -104,7 +104,10 @@ const Keys = () => {
   };
 
   const handleUpdateKey = () => {
-    if (!editingKeyPair) return;
+    if (!editingKeyPair?.name || !editingKeyPair?.publicKey || !editingKeyPair?.privateKey) {
+      alert('Please fill in all fields');
+      return;
+    }
 
     const trimmedKeyPair = {
       ...editingKeyPair,
@@ -338,14 +341,14 @@ const Keys = () => {
                     </>
                   ) : (
                     <>
-                      <div className="space-y-2">
+                      <div className="space-y-2 mb-12">
                         <Label className="key-label">Public Key (PEM)</Label>
                         <div className="key-display blurred">
                           {pair.publicKey}
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label className="key-label">Private Key (PEM)</Label>
+                        <Label className="key-label mt-6">Private Key (PEM)</Label>
                         <div className="key-display blurred">
                           {pair.privateKey}
                         </div>

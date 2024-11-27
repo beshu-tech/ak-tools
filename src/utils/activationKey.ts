@@ -101,6 +101,7 @@ export const signJWT = async (
 
 export interface ValidationResult {
   isValid: boolean;
+  error: string | null;
   keyName?: string;
   errors?: {
     expired?: boolean;
@@ -116,6 +117,7 @@ export const validateJWTSignature = async (
   if (!keyPair) {
     return {
       isValid: false,
+      error: 'No matching key found in your list of keys',
       errors: {
         signature: true,
         message: 'No matching key found in your list of keys'
@@ -136,11 +138,13 @@ export const validateJWTSignature = async (
 
     return {
       isValid: true,
+      error: null,
       errors: undefined      
     };
   } catch (error) {
     return {
       isValid: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
       errors: {
         signature: true,
         message: error instanceof Error ? error.message : 'Unknown error'

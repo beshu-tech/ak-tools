@@ -1,4 +1,3 @@
-
 export type Algorithm = string;
 
 export const SUPPORTED_ALGORITHMS = ['ES512'];
@@ -21,4 +20,13 @@ export interface KeyPair {
   privateKey: string;
   publicKey: string;
   createdAt: string;
+}
+
+/**
+ * Result of activation key validation
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  error: string | null;
+  metadata?: ActivationKeyMetadata;
 } 

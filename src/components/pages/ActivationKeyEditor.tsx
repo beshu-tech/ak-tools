@@ -79,10 +79,7 @@ const ActivationKeyEditor = () => {
     } catch (error) {
       setSignatureValidation({
         isValid: false,
-        errors: {
-          signature: true,
-          message: 'Invalid JWT format'
-        }
+        error: "Invalid signature",
       });
     }
   };
