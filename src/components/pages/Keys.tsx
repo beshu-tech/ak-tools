@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Download, Upload, ChevronRight } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +31,7 @@ const Keys = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingKeyPair, setEditingKeyPair] = useState<KeyPair | null>(null);
+  const [showSec1Info, setShowSec1Info] = useState(false);
 
   useEffect(() => {
     const savedKeys = localStorage.getItem('keyPairs');
@@ -179,11 +180,35 @@ const Keys = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <PageHeader 
         title="Keys Management"
         description="Manage your key pairs. All keys should be in PKCS#8 PEM format."
       />
+      
+      <div className="mt-2 mb-6 text-left">
+        <button 
+          onClick={() => setShowSec1Info(prev => !prev)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronRight 
+            className={`h-4 w-4 transition-transform ${showSec1Info ? 'rotate-90' : ''}`}
+          />
+          <p className="font-medium">Converting SEC1 PEM to PKCS#8</p>
+        </button>
+        
+        {showSec1Info && (
+          <div className="mt-2 p-4 bg-secondary/10 rounded-lg text-sm">
+            <p className="mb-2">
+              If you have a SEC1 PEM key (starting with "BEGIN EC PRIVATE KEY"), 
+              you can convert it to PKCS#8 format using this command:
+            </p>
+            <pre className=" p-3 pr-12 bg-muted border rounded-md font-mono text-sm break-all">
+              openssl pkcs8 -topk8 -nocrypt -in sec1_ec_private_key.pem -out pkcs8_private_key.pem
+            </pre>
+          </div>
+        )}
+      </div>
 
       <div className="space-y-4">
         <div className="flex justify-end gap-2">
