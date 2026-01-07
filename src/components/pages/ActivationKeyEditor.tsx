@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useState } from 'react';
+import { useReducer, useEffect, useCallback, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
@@ -6,7 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import Editor from "@monaco-editor/react";
 import { Button } from '../ui/button';
-import { X, Check, Copy, FileText, Plus, Save, AlertTriangle } from 'lucide-react';
+import { X, Check, Copy, FileText, Plus, Save, AlertTriangle, Key, ChevronDown, Circle } from 'lucide-react';
 import { Algorithm, SUPPORTED_ALGORITHMS } from '../../types/activationKey';
 import { decodeJWT, getJwtMetadata, signJWT, validateJWTSignature, ValidationResult } from '../../utils/activationKey';
 import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMetadata';
@@ -106,6 +106,12 @@ const ActivationKeyEditor = () => {
   // Track source template (when loaded from a template)
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
 
+  // Track original editor value for dirty detection
+  const originalEditorValueRef = useRef<string>('{}');
+
+  // Template switcher state
+  const [templateSwitcherOpen, setTemplateSwitcherOpen] = useState(false);
+
   // Save as template state
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -114,6 +120,9 @@ const ActivationKeyEditor = () => {
   const [saveAsExpired, setSaveAsExpired] = useState(false);
 
   const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
+
+  // Compute dirty state after state destructuring
+  const isDirty = editorValue !== originalEditorValueRef.current && jwt !== '';
 
   // Check if current JWT is expired
   const isJwtExpired = useCallback(() => {
@@ -185,6 +194,9 @@ const ActivationKeyEditor = () => {
         issuedDate: newIssuedDate,
       },
     });
+
+    // Track original value for dirty detection
+    originalEditorValueRef.current = payloadOnly;
 
     // Validate signature
     const selectedKey = getKeyPairById(selectedKeyId);
@@ -270,10 +282,34 @@ const ActivationKeyEditor = () => {
   const clearJwt = useCallback(() => {
     dispatch({ type: 'CLEAR' });
     setSourceTemplateId(null);
+    originalEditorValueRef.current = '{}';
     if (keyPairs.length > 0) {
       dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
     }
   }, [keyPairs]);
+
+  // Handle template switching with dirty check
+  const handleSwitchTemplate = useCallback(async (templateId: string) => {
+    const template = getTemplateById(templateId);
+    if (!template) return;
+
+    // Check for unsaved changes
+    if (isDirty) {
+      const confirmed = await confirm(
+        'You have unsaved changes. Switch template anyway?'
+      );
+      if (!confirmed) return;
+    }
+
+    setTemplateSwitcherOpen(false);
+    setSourceTemplateId(template.id);
+    handleInputChange(template.activationKey);
+  }, [isDirty, confirm, getTemplateById, handleInputChange]);
+
+  // Get current template name
+  const currentTemplateName = sourceTemplateId
+    ? getTemplateById(sourceTemplateId)?.name
+    : null;
 
   // Handle opening save template popover
   const handleSaveTemplateClick = useCallback(() => {
@@ -507,14 +543,103 @@ const ActivationKeyEditor = () => {
               </div>
 
               <div className="ak-right-column">
-                <div className="ak-header-row">
-                  <ValidationStatus validation={validation} />
+                {/* Template Switcher */}
+                <div className="flex items-center gap-2 pb-4 border-b mb-4">
+                  <Popover open={templateSwitcherOpen} onOpenChange={setTemplateSwitcherOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex-1 justify-between h-10"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="truncate">
+                            {currentTemplateName || 'No template'}
+                          </span>
+                          {isDirty && (
+                            <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />
+                          )}
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="start">
+                      <div className="p-2 border-b">
+                        <p className="text-sm font-medium">Switch Template</p>
+                        {isDirty && (
+                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                            Unsaved changes will be lost
+                          </p>
+                        )}
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {templates.length > 0 ? (
+                          templates.map((template) => (
+                            <button
+                              key={template.id}
+                              onClick={() => handleSwitchTemplate(template.id)}
+                              className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
+                                template.id === sourceTemplateId ? 'bg-secondary/30' : ''
+                              }`}
+                            >
+                              <div className="text-sm font-medium flex items-center gap-2">
+                                {template.name}
+                                {template.id === sourceTemplateId && (
+                                  <Check className="h-3 w-3 text-primary" />
+                                )}
+                              </div>
+                              {template.description && (
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {template.description}
+                                </div>
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                            No templates yet
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-2 border-t">
+                        <Link to="/templates">
+                          <Button variant="ghost" size="sm" className="w-full gap-2">
+                            <Plus className="h-4 w-4" />
+                            Manage templates
+                          </Button>
+                        </Link>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
+                {/* Validation Status */}
+                <div className="mb-4">
+                  <ValidationStatus validation={validation} />
+                </div>
+
+                {/* Metadata Display */}
+                {getJwtMetadata(jwt) && (
+                  <ActivationKeyMetadataDisplay
+                    metadata={getJwtMetadata(jwt)!}
+                    expiryDate={expiryDate}
+                    onExpiryChange={(date) => dispatch({ type: 'SET_EXPIRY_DATE', payload: date })}
+                    issuedDate={issuedDate}
+                    onIssuedChange={(date) => dispatch({ type: 'SET_ISSUED_DATE', payload: date })}
+                  />
+                )}
+
+                {/* Signing Key Selection */}
+                <div className="space-y-2 mt-4 pt-4 border-t">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Key className="h-3 w-3" />
+                    Signing Key
+                  </Label>
                   <Select
                     value={selectedKeyId}
                     onValueChange={(value) => dispatch({ type: 'SET_SELECTED_KEY', payload: value })}
                   >
-                    <SelectTrigger className="ak-key-select">
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a key for signing" />
                     </SelectTrigger>
                     <SelectContent>
@@ -527,17 +652,8 @@ const ActivationKeyEditor = () => {
                   </Select>
                 </div>
 
-                {getJwtMetadata(jwt) && (
-                  <ActivationKeyMetadataDisplay
-                    metadata={getJwtMetadata(jwt)!}
-                    expiryDate={expiryDate}
-                    onExpiryChange={(date) => dispatch({ type: 'SET_EXPIRY_DATE', payload: date })}
-                    issuedDate={issuedDate}
-                    onIssuedChange={(date) => dispatch({ type: 'SET_ISSUED_DATE', payload: date })}
-                  />
-                )}
-
-                <div className="ak-controls">
+                {/* Action Buttons */}
+                <div className="ak-controls mt-4">
                   <Button
                     onClick={handleSign}
                     disabled={!selectedKeyId || !editorValue}
