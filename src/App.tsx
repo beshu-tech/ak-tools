@@ -1,17 +1,19 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
-import { Key, ShieldCheck } from 'lucide-react';
+import { Key, ShieldCheck, FileText } from 'lucide-react';
 import { ThemeProvider } from './hooks/use-theme';
 import { ToastProvider } from './hooks/use-toast';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
 // Import page components
 import Keys from './components/pages/Keys';
+import Templates from './components/pages/Templates';
 import ActivationKeyEditor from './components/pages/ActivationKeyEditor';
 
 function App() {
   const menuItems = [
-    { title: "Activation Key Editor", icon: ShieldCheck, path: "/" },
+    { title: "Editor", icon: ShieldCheck, path: "/" },
+    { title: "Templates", icon: FileText, path: "/templates" },
     { title: "Keys", icon: Key, path: "/keys" },
   ];
 
@@ -80,6 +82,7 @@ function App() {
           <main className="container mx-auto px-4 py-6">
             <Routes>
               <Route path="/" element={<ActivationKeyEditor />} />
+              <Route path="/templates" element={<Templates />} />
               <Route path="/keys" element={<Keys />} />
             </Routes>
           </main>

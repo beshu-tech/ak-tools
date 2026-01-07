@@ -1,22 +1,22 @@
 import { useReducer, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
 import Editor from "@monaco-editor/react";
 import { Button } from '../ui/button';
-import { X, Check, Copy } from 'lucide-react';
+import { X, Check, Copy, FileText, Plus } from 'lucide-react';
 import { Algorithm, SUPPORTED_ALGORITHMS } from '../../types/activationKey';
 import { decodeJWT, getJwtMetadata, signJWT, validateJWTSignature, ValidationResult } from '../../utils/activationKey';
 import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMetadata';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { PageHeader } from '../ui/page-header';
 import { ValidationStatus } from '../activationkey/validation-status';
 import { useTheme } from '../../hooks/use-theme';
 import { useKeyPairs } from '../../hooks/use-key-pairs';
+import { useTemplates } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
 import './ActivationKeyEditor.css';
-
-// Example JWT for demonstration
-const EXAMPLE_JWT = "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjg4MDYxMjEyODAwLCJpc3MiOiJodHRwczovL2FwaS5iZXNodS50ZWNoIiwiaWF0IjoxNjYxMzU2MTAxLCJqdGkiOiJhbmFwaG9yYV9saWNfMjViMmFhYTgtMTQwMS00YjhmLThkMGYtNmMzMTdmOWJhNjcwIiwiYXVkIjoiQW5hcGhvcmEiLCJzdWIiOiIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMSIsImxpY2Vuc29yIjp7Im5hbWUiOiJBbmFwaG9yYSIsImNvbnRhY3QiOlsic3VwcG9ydEByZWFkb25seXJlc3QuY29tIiwiZmluYW5jZUByZWFkb25seXJlc3QuY29tIl0sImlzc3VlciI6InN1cHBvcnRAcmVhZG9ubHlyZXN0LmNvbSJ9LCJsaWNlbnNlZSI6eyJuYW1lIjoiQW5vbnltb3VzIEZyZWUgVXNlciIsImJ1eWluZ19mb3IiOm51bGwsImJpbGxpbmdfZW1haWwiOiJ1bmtub3duQGFuYXBob3JhLmNvbSIsImFsdF9lbWFpbHMiOltdLCJhZGRyZXNzIjpbIlVua25vd24iXX0sImxpY2Vuc2UiOnsiY2x1c3Rlcl91dWlkIjoiKiIsImVkaXRpb24iOiJmcmVlIiwiZWRpdGlvbl9uYW1lIjoiRnJlZSIsImlzVHJpYWwiOmZhbHNlfX0.ATAB81zkWRxTdpSD_23tcFxba81OCrjdtcGlx_yXwa2VSvJAx7rWQYO2VM2N8zeknA01SzYpPP2o_FXzP3TCEo4iABRof2G1u0iD1AFf5Y0m_TYPs89acR5Fztb46wSBwsj4L1ONal0y8xHYfJC54SKwdXJV4XTJwIP2tBVcTl9QNAfn";
 
 // State type for the editor
 interface EditorState {
@@ -96,6 +96,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 const ActivationKeyEditor = () => {
   const { theme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
+  const { templates } = useTemplates();
   const { error: showError } = useToast();
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
@@ -247,19 +248,58 @@ const ActivationKeyEditor = () => {
       />
 
       {!jwt ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Textarea
             placeholder="Paste your Activation Key here"
             value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
             className="ak-input"
           />
-          <button
-            onClick={() => handleInputChange(EXAMPLE_JWT)}
-            className="ak-example-link"
-          >
-            Use example
-          </button>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Use template
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-0" align="start">
+                <div className="p-2 border-b">
+                  <p className="text-sm font-medium">Select a template</p>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {templates.length > 0 ? (
+                    templates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleInputChange(template.jwt)}
+                        className="w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors"
+                      >
+                        <div className="text-sm font-medium">{template.name}</div>
+                        {template.description && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {template.description}
+                          </div>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      No templates yet
+                    </div>
+                  )}
+                </div>
+                <div className="p-2 border-t">
+                  <Link to="/templates">
+                    <Button variant="ghost" size="sm" className="w-full gap-2">
+                      <Plus className="h-4 w-4" />
+                      Manage templates
+                    </Button>
+                  </Link>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       ) : (
         <Card className="relative">
