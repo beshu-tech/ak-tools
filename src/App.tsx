@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import { Key, ShieldCheck } from 'lucide-react';
-import { ThemeProvider } from './hooks/use-theme'
+import { ThemeProvider } from './hooks/use-theme';
+import { ToastProvider } from './hooks/use-toast';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
 // Import page components
@@ -16,6 +17,7 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="ak-tools-theme">
+      <ToastProvider>
       <Router>
         <div className="min-h-screen">
           <nav className="border-b">
@@ -83,6 +85,7 @@ function App() {
           </main>
         </div>
       </Router>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

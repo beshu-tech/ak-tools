@@ -1,155 +1,227 @@
-import { useState, useEffect } from 'react';
+import { useReducer, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
 import Editor from "@monaco-editor/react";
 import { Button } from '../ui/button';
 import { X, Check, Copy } from 'lucide-react';
-import { Algorithm, SUPPORTED_ALGORITHMS, KeyPair } from '../../types/activationKey';
+import { Algorithm, SUPPORTED_ALGORITHMS } from '../../types/activationKey';
 import { decodeJWT, getJwtMetadata, signJWT, validateJWTSignature, ValidationResult } from '../../utils/activationKey';
 import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMetadata';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { PageHeader } from '../ui/page-header';
 import { ValidationStatus } from '../activationkey/validation-status';
-import './ActivationKeyEditor.css';
 import { useTheme } from '../../hooks/use-theme';
+import { useKeyPairs } from '../../hooks/use-key-pairs';
+import { useToast } from '../../hooks/use-toast';
+import './ActivationKeyEditor.css';
+
+// Example JWT for demonstration
+const EXAMPLE_JWT = "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjg4MDYxMjEyODAwLCJpc3MiOiJodHRwczovL2FwaS5iZXNodS50ZWNoIiwiaWF0IjoxNjYxMzU2MTAxLCJqdGkiOiJhbmFwaG9yYV9saWNfMjViMmFhYTgtMTQwMS00YjhmLThkMGYtNmMzMTdmOWJhNjcwIiwiYXVkIjoiQW5hcGhvcmEiLCJzdWIiOiIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMSIsImxpY2Vuc29yIjp7Im5hbWUiOiJBbmFwaG9yYSIsImNvbnRhY3QiOlsic3VwcG9ydEByZWFkb25seXJlc3QuY29tIiwiZmluYW5jZUByZWFkb25seXJlc3QuY29tIl0sImlzc3VlciI6InN1cHBvcnRAcmVhZG9ubHlyZXN0LmNvbSJ9LCJsaWNlbnNlZSI6eyJuYW1lIjoiQW5vbnltb3VzIEZyZWUgVXNlciIsImJ1eWluZ19mb3IiOm51bGwsImJpbGxpbmdfZW1haWwiOiJ1bmtub3duQGFuYXBob3JhLmNvbSIsImFsdF9lbWFpbHMiOltdLCJhZGRyZXNzIjpbIlVua25vd24iXX0sImxpY2Vuc2UiOnsiY2x1c3Rlcl91dWlkIjoiKiIsImVkaXRpb24iOiJmcmVlIiwiZWRpdGlvbl9uYW1lIjoiRnJlZSIsImlzVHJpYWwiOmZhbHNlfX0.ATAB81zkWRxTdpSD_23tcFxba81OCrjdtcGlx_yXwa2VSvJAx7rWQYO2VM2N8zeknA01SzYpPP2o_FXzP3TCEo4iABRof2G1u0iD1AFf5Y0m_TYPs89acR5Fztb46wSBwsj4L1ONal0y8xHYfJC54SKwdXJV4XTJwIP2tBVcTl9QNAfn";
+
+// State type for the editor
+interface EditorState {
+  inputValue: string;
+  jwt: string;
+  editorValue: string;
+  algorithm: Algorithm;
+  expiryDate: Date | undefined;
+  selectedKeyId: string;
+  validation: ValidationResult | null;
+  showCopied: boolean;
+}
+
+// Action types for the reducer
+type EditorAction =
+  | { type: 'SET_INPUT'; payload: string }
+  | { type: 'SET_JWT'; payload: { jwt: string; editorValue: string; algorithm?: Algorithm; expiryDate?: Date } }
+  | { type: 'SET_EDITOR_VALUE'; payload: string }
+  | { type: 'SET_ALGORITHM'; payload: Algorithm }
+  | { type: 'SET_EXPIRY_DATE'; payload: Date | undefined }
+  | { type: 'SET_SELECTED_KEY'; payload: string }
+  | { type: 'SET_VALIDATION'; payload: ValidationResult | null }
+  | { type: 'SHOW_COPIED' }
+  | { type: 'HIDE_COPIED' }
+  | { type: 'CLEAR' };
+
+const initialState: EditorState = {
+  inputValue: '',
+  jwt: '',
+  editorValue: '{}',
+  algorithm: 'ES512',
+  expiryDate: undefined,
+  selectedKeyId: '',
+  validation: null,
+  showCopied: false,
+};
+
+function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  switch (action.type) {
+    case 'SET_INPUT':
+      return { ...state, inputValue: action.payload };
+    case 'SET_JWT':
+      return {
+        ...state,
+        jwt: action.payload.jwt,
+        editorValue: action.payload.editorValue,
+        algorithm: action.payload.algorithm ?? state.algorithm,
+        expiryDate: action.payload.expiryDate ?? state.expiryDate,
+      };
+    case 'SET_EDITOR_VALUE':
+      return { ...state, editorValue: action.payload };
+    case 'SET_ALGORITHM':
+      return { ...state, algorithm: action.payload };
+    case 'SET_EXPIRY_DATE':
+      return { ...state, expiryDate: action.payload };
+    case 'SET_SELECTED_KEY':
+      return { ...state, selectedKeyId: action.payload };
+    case 'SET_VALIDATION':
+      return { ...state, validation: action.payload };
+    case 'SHOW_COPIED':
+      return { ...state, showCopied: true };
+    case 'HIDE_COPIED':
+      return { ...state, showCopied: false };
+    case 'CLEAR':
+      return { ...initialState, selectedKeyId: state.selectedKeyId };
+    default:
+      return state;
+  }
+}
 
 const ActivationKeyEditor = () => {
   const { theme } = useTheme();
-  const [inputValue, setInputValue] = useState('');
-  const [jwt, setJwt] = useState('');
-  const [keyPairs, setKeyPairs] = useState<KeyPair[]>([]);
-  const [selectedKeyId, setSelectedKeyId] = useState<string>('');
-  const [expiryDate, setExpiryDate] = useState<Date | undefined>(undefined);
-  const [showCopied, setShowCopied] = useState(false);
-  const [algorithm, setAlgorithm] = useState<Algorithm>('ES512');
-  const [editorValue, setEditorValue] = useState('{}');
-  const [signatureValidation, setSignatureValidation] = useState<ValidationResult | null>(null);
+  const { keyPairs, getKeyPairById } = useKeyPairs();
+  const { error: showError } = useToast();
+  const [state, dispatch] = useReducer(editorReducer, initialState);
 
-  const exampleJwt = "eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjg4MDYxMjEyODAwLCJpc3MiOiJodHRwczovL2FwaS5iZXNodS50ZWNoIiwiaWF0IjoxNjYxMzU2MTAxLCJqdGkiOiJhbmFwaG9yYV9saWNfMjViMmFhYTgtMTQwMS00YjhmLThkMGYtNmMzMTdmOWJhNjcwIiwiYXVkIjoiQW5hcGhvcmEiLCJzdWIiOiIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMSIsImxpY2Vuc29yIjp7Im5hbWUiOiJBbmFwaG9yYSIsImNvbnRhY3QiOlsic3VwcG9ydEByZWFkb25seXJlc3QuY29tIiwiZmluYW5jZUByZWFkb25seXJlc3QuY29tIl0sImlzc3VlciI6InN1cHBvcnRAcmVhZG9ubHlyZXN0LmNvbSJ9LCJsaWNlbnNlZSI6eyJuYW1lIjoiQW5vbnltb3VzIEZyZWUgVXNlciIsImJ1eWluZ19mb3IiOm51bGwsImJpbGxpbmdfZW1haWwiOiJ1bmtub3duQGFuYXBob3JhLmNvbSIsImFsdF9lbWFpbHMiOltdLCJhZGRyZXNzIjpbIlVua25vd24iXX0sImxpY2Vuc2UiOnsiY2x1c3Rlcl91dWlkIjoiKiIsImVkaXRpb24iOiJmcmVlIiwiZWRpdGlvbl9uYW1lIjoiRnJlZSIsImlzVHJpYWwiOmZhbHNlfX0.ATAB81zkWRxTdpSD_23tcFxba81OCrjdtcGlx_yXwa2VSvJAx7rWQYO2VM2N8zeknA01SzYpPP2o_FXzP3TCEo4iABRof2G1u0iD1AFf5Y0m_TYPs89acR5Fztb46wSBwsj4L1ONal0y8xHYfJC54SKwdXJV4XTJwIP2tBVcTl9QNAfn"
+  const { inputValue, jwt, editorValue, algorithm, expiryDate, selectedKeyId, validation, showCopied } = state;
+
+  // Set initial selected key when keyPairs load
   useEffect(() => {
-    const savedKeys = localStorage.getItem('keyPairs');
-    if (savedKeys) {
-      const keys = JSON.parse(savedKeys);
-      setKeyPairs(keys);
-      if (keys.length > 0 && !selectedKeyId) {
-        setSelectedKeyId(keys[0].id);
-      }
+    if (keyPairs.length > 0 && !selectedKeyId) {
+      dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
     }
-  }, [selectedKeyId]);
+  }, [keyPairs, selectedKeyId]);
 
-  const handleInputChange = async (value: string) => {
-    setInputValue(value);
+  // Validate JWT when selected key changes
+  useEffect(() => {
+    if (jwt && selectedKeyId) {
+      const selectedKey = getKeyPairById(selectedKeyId);
+      validateJWTSignature(jwt, selectedKey).then(result => {
+        dispatch({ type: 'SET_VALIDATION', payload: result });
+      });
+    }
+  }, [selectedKeyId, jwt, getKeyPairById]);
+
+  const handleInputChange = useCallback(async (value: string) => {
+    dispatch({ type: 'SET_INPUT', payload: value });
 
     if (!value) {
-      clearJwt();
+      dispatch({ type: 'CLEAR' });
       return;
-    }
-
-    if (!selectedKeyId && keyPairs.length > 0) {
-      setSelectedKeyId(keyPairs[0].id);
     }
 
     // Try to parse as JWT
     const metadata = getJwtMetadata(value);
+    let newAlgorithm: Algorithm | undefined;
+    let newExpiryDate: Date | undefined;
+
     if (metadata) {
       if (metadata.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
-        setAlgorithm(metadata.algorithm as Algorithm);
+        newAlgorithm = metadata.algorithm as Algorithm;
       }
       if (metadata.expiresAt) {
-        setExpiryDate(new Date(metadata.expiresAt));
+        newExpiryDate = new Date(metadata.expiresAt);
       }
     }
 
     const decoded = await decodeJWT(value);
+    let payloadOnly = '{}';
     try {
       const parsedDecoded = JSON.parse(decoded);
-      const payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
-      setEditorValue(payloadOnly);
-    } catch (e) {
-      setEditorValue('{}');
+      payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
+    } catch {
+      // Keep default empty object
     }
-    setJwt(value);
 
+    dispatch({
+      type: 'SET_JWT',
+      payload: {
+        jwt: value,
+        editorValue: payloadOnly,
+        algorithm: newAlgorithm,
+        expiryDate: newExpiryDate,
+      },
+    });
+
+    // Validate signature
+    const selectedKey = getKeyPairById(selectedKeyId);
     try {
-      // Only validate against the selected key pair
-      const selectedKey = keyPairs.find(k => k.id === selectedKeyId);
-      const validation = await validateJWTSignature(value, selectedKey);
-      setSignatureValidation(validation);
-    } catch (error) {
-      setSignatureValidation({
-        isValid: false,
-        error: "Invalid signature",
+      const validationResult = await validateJWTSignature(value, selectedKey);
+      dispatch({ type: 'SET_VALIDATION', payload: validationResult });
+    } catch {
+      dispatch({
+        type: 'SET_VALIDATION',
+        payload: { isValid: false, error: 'Invalid signature' },
       });
     }
-  };
+  }, [selectedKeyId, getKeyPairById]);
 
-  // Also update validation when the selected key changes
-  useEffect(() => {
-    if (jwt && selectedKeyId) {
-      const selectedKey = keyPairs.find(k => k.id === selectedKeyId);
-      validateJWTSignature(jwt, selectedKey).then(setSignatureValidation);
-    }
-  }, [selectedKeyId, jwt]);
+  const handleSign = useCallback(async () => {
+    const selectedKey = getKeyPairById(selectedKeyId);
+    if (!selectedKey) return;
 
-  const clearJwt = () => {
-    setInputValue('');
-    setJwt('');
-    setSignatureValidation(null);
-    if (keyPairs.length > 0) {
-      setSelectedKeyId(keyPairs[0].id);
-    } else {
-      setSelectedKeyId('');
-    }
-  };
-
-  const handleSign = async () => {
+    let payload;
     try {
-      const selectedKey = keyPairs.find(k => k.id === selectedKeyId);
-      if (!selectedKey) return;
+      payload = JSON.parse(editorValue);
+    } catch {
+      showError('Invalid JSON payload');
+      return;
+    }
 
-      let payload;
-      try {
-        // Parse the editor value directly as the payload
-        payload = JSON.parse(editorValue);
-      } catch (e) {
-        alert('Invalid JSON payload');
-        return;
-      }
+    // Only override exp if a new expiry date is selected
+    if (expiryDate) {
+      payload.exp = Math.floor(expiryDate.getTime() / 1000);
+    }
 
-      // Only override exp if a new expiry date is selected
-      if (expiryDate) {
-        payload.exp = Math.floor(expiryDate.getTime() / 1000);
-      }
-
+    try {
       const newToken = await signJWT(
         payload,
         algorithm,
         selectedKey,
-        // Use the expiry date from the payload if no new date is selected
         expiryDate || (payload.exp ? new Date(payload.exp * 1000) : new Date())
       );
 
-      setJwt(newToken);
       const newDecoded = await decodeJWT(newToken);
-      // Extract just the payload object for the editor
+      let payloadOnly = '{}';
       try {
         const parsedDecoded = JSON.parse(newDecoded);
-        const payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
-        setEditorValue(payloadOnly);
-      } catch (e) {
-        setEditorValue('{}');
+        payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
+      } catch {
+        // Keep default
       }
+
+      dispatch({
+        type: 'SET_JWT',
+        payload: { jwt: newToken, editorValue: payloadOnly },
+      });
     } catch (error) {
       console.error('Signing error:', error);
-      alert('Failed to sign JWT');
+      showError('Failed to sign JWT');
     }
-  };
+  }, [selectedKeyId, editorValue, expiryDate, algorithm, getKeyPairById, showError]);
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
-    setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 2000);
-  };
+    dispatch({ type: 'SHOW_COPIED' });
+    setTimeout(() => dispatch({ type: 'HIDE_COPIED' }), 2000);
+  }, []);
+
+  const clearJwt = useCallback(() => {
+    dispatch({ type: 'CLEAR' });
+    if (keyPairs.length > 0) {
+      dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
+    }
+  }, [keyPairs]);
 
   return (
     <div className="ak-editor-container">
@@ -167,7 +239,7 @@ const ActivationKeyEditor = () => {
             className="ak-input"
           />
           <button
-            onClick={() => handleInputChange(exampleJwt)}
+            onClick={() => handleInputChange(EXAMPLE_JWT)}
             className="ak-example-link"
           >
             Use example
@@ -187,10 +259,9 @@ const ActivationKeyEditor = () => {
             <div className="ak-content-wrapper">
               <div className="ak-editor-monaco">
                 <Editor
-                  key={`monaco-${jwt}`}
                   defaultLanguage="json"
                   value={editorValue}
-                  onChange={(value) => setEditorValue(value || '{}')}
+                  onChange={(value) => dispatch({ type: 'SET_EDITOR_VALUE', payload: value || '{}' })}
                   options={{
                     minimap: { enabled: false },
                     formatOnPaste: true,
@@ -221,9 +292,12 @@ const ActivationKeyEditor = () => {
 
               <div className="ak-right-column">
                 <div className="ak-header-row">
-                  <ValidationStatus validation={signatureValidation} />
-                  
-                  <Select value={selectedKeyId} onValueChange={setSelectedKeyId}>
+                  <ValidationStatus validation={validation} />
+
+                  <Select
+                    value={selectedKeyId}
+                    onValueChange={(value) => dispatch({ type: 'SET_SELECTED_KEY', payload: value })}
+                  >
                     <SelectTrigger className="ak-key-select">
                       <SelectValue placeholder="Select a key for signing" />
                     </SelectTrigger>
@@ -238,10 +312,10 @@ const ActivationKeyEditor = () => {
                 </div>
 
                 {getJwtMetadata(jwt) && (
-                  <ActivationKeyMetadataDisplay 
-                    metadata={getJwtMetadata(jwt)!} 
+                  <ActivationKeyMetadataDisplay
+                    metadata={getJwtMetadata(jwt)!}
                     expiryDate={expiryDate}
-                    onExpiryChange={setExpiryDate}
+                    onExpiryChange={(date) => dispatch({ type: 'SET_EXPIRY_DATE', payload: date })}
                   />
                 )}
 
@@ -283,4 +357,4 @@ const ActivationKeyEditor = () => {
   );
 };
 
-export default ActivationKeyEditor; 
+export default ActivationKeyEditor;
