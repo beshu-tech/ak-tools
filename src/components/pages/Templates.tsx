@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle, AlertCircle, ExternalLink } from 'lucide-react';
 import { PageHeader } from '../ui/page-header';
 import { useTemplates, AkTemplate } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
 import { getJwtMetadata, validateActivationKeyFormat, AkValidationResult } from '../../utils/activationKey';
+
+// Key for storing template to load in editor
+export const PENDING_TEMPLATE_KEY = 'pendingTemplateId';
 
 const EMPTY_TEMPLATE: Omit<AkTemplate, 'id' | 'createdAt'> = {
   name: '',
@@ -22,6 +26,7 @@ interface ValidationState {
 }
 
 const Templates = () => {
+  const navigate = useNavigate();
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplates();
   const { success, error: showError, confirm } = useToast();
 
@@ -152,6 +157,12 @@ const Templates = () => {
     const metadata = getJwtMetadata(activationKey);
     if (!metadata?.expiresAt) return false;
     return metadata.expiresAt < new Date();
+  };
+
+  // Load template in editor
+  const loadInEditor = (templateId: string) => {
+    localStorage.setItem(PENDING_TEMPLATE_KEY, templateId);
+    navigate('/');
   };
 
   // Helper to render validation error
@@ -299,8 +310,20 @@ const Templates = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        loadInEditor(template.id);
+                      }}
+                      title="Load in Editor"
+                    >
+                      <ExternalLink className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         copyToClipboard(template.activationKey, template.id);
                       }}
+                      title="Copy to clipboard"
                     >
                       {copiedId === template.id ? (
                         <Check className="h-5 w-5 text-green-500" />
@@ -316,6 +339,7 @@ const Templates = () => {
                           e.stopPropagation();
                           handleDelete(template.id);
                         }}
+                        title="Delete template"
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>
@@ -327,6 +351,7 @@ const Templates = () => {
                         e.stopPropagation();
                         handleEdit(template);
                       }}
+                      title="Edit template"
                     >
                       <Pencil className={`h-5 w-5 ${editingId === template.id ? "text-primary" : ""}`} />
                     </Button>
