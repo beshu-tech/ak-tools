@@ -13,7 +13,6 @@ import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMeta
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { PageHeader } from '../ui/page-header';
-import { ValidationStatus } from '../activationkey/validation-status';
 import { useTheme } from '../../hooks/use-theme';
 import { useKeyPairs } from '../../hooks/use-key-pairs';
 import { useTemplates } from '../../hooks/use-templates';
@@ -543,79 +542,93 @@ const ActivationKeyEditor = () => {
               </div>
 
               <div className="ak-right-column">
-                {/* Template Switcher */}
-                <div className="flex items-center gap-2 pb-4 border-b mb-4">
-                  <Popover open={templateSwitcherOpen} onOpenChange={setTemplateSwitcherOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="flex-1 justify-between h-10"
-                      >
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
+                {/* Template Switcher with Validation Status */}
+                <div className="space-y-2 pb-4 border-b mb-4">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <FileText className="h-3 w-3" />
+                    Template
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    {/* Validation indicator */}
+                    {validation && (
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                        validation.isValid
+                          ? 'bg-green-500/10 text-green-500'
+                          : 'bg-destructive/10 text-destructive'
+                      }`}>
+                        {validation.isValid ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <X className="h-4 w-4" />
+                        )}
+                      </div>
+                    )}
+                    <Popover open={templateSwitcherOpen} onOpenChange={setTemplateSwitcherOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="flex-1 justify-between h-10"
+                        >
                           <span className="truncate">
                             {currentTemplateName || 'No template'}
                           </span>
+                          <div className="flex items-center gap-1.5">
+                            {isDirty && (
+                              <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />
+                            )}
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="p-2 border-b">
+                          <p className="text-sm font-medium">Switch Template</p>
                           {isDirty && (
-                            <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />
+                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                              Unsaved changes will be lost
+                            </p>
                           )}
                         </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-0" align="start">
-                      <div className="p-2 border-b">
-                        <p className="text-sm font-medium">Switch Template</p>
-                        {isDirty && (
-                          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                            Unsaved changes will be lost
-                          </p>
-                        )}
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {templates.length > 0 ? (
-                          templates.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => handleSwitchTemplate(template.id)}
-                              className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
-                                template.id === sourceTemplateId ? 'bg-secondary/30' : ''
-                              }`}
-                            >
-                              <div className="text-sm font-medium flex items-center gap-2">
-                                {template.name}
-                                {template.id === sourceTemplateId && (
-                                  <Check className="h-3 w-3 text-primary" />
-                                )}
-                              </div>
-                              {template.description && (
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {template.description}
+                        <div className="max-h-64 overflow-y-auto">
+                          {templates.length > 0 ? (
+                            templates.map((template) => (
+                              <button
+                                key={template.id}
+                                onClick={() => handleSwitchTemplate(template.id)}
+                                className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
+                                  template.id === sourceTemplateId ? 'bg-secondary/30' : ''
+                                }`}
+                              >
+                                <div className="text-sm font-medium flex items-center gap-2">
+                                  {template.name}
+                                  {template.id === sourceTemplateId && (
+                                    <Check className="h-3 w-3 text-primary" />
+                                  )}
                                 </div>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                            No templates yet
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2 border-t">
-                        <Link to="/templates">
-                          <Button variant="ghost" size="sm" className="w-full gap-2">
-                            <Plus className="h-4 w-4" />
-                            Manage templates
-                          </Button>
-                        </Link>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Validation Status */}
-                <div className="mb-4">
-                  <ValidationStatus validation={validation} />
+                                {template.description && (
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {template.description}
+                                  </div>
+                                )}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                              No templates yet
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2 border-t">
+                          <Link to="/templates">
+                            <Button variant="ghost" size="sm" className="w-full gap-2">
+                              <Plus className="h-4 w-4" />
+                              Manage templates
+                            </Button>
+                          </Link>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 {/* Metadata Display */}
