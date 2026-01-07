@@ -1,5 +1,9 @@
 import { KeyPair } from '../types/activationKey';
 
+// Validation constants
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 100;
+
 export interface KeyPairValidationErrors {
   name?: string;
   publicKey?: string;
@@ -57,12 +61,12 @@ export function validateKeyPairName(name: string): string | null {
     return 'Name is required';
   }
 
-  if (trimmed.length < 2) {
-    return 'Name must be at least 2 characters';
+  if (trimmed.length < MIN_NAME_LENGTH) {
+    return `Name must be at least ${MIN_NAME_LENGTH} characters`;
   }
 
-  if (trimmed.length > 100) {
-    return 'Name must be less than 100 characters';
+  if (trimmed.length > MAX_NAME_LENGTH) {
+    return `Name must be less than ${MAX_NAME_LENGTH} characters`;
   }
 
   return null;

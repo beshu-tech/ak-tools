@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useState, useRef } from 'react';
+import { useReducer, useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
@@ -108,6 +108,9 @@ const ActivationKeyEditor = () => {
   // Track original editor value for dirty detection
   const originalEditorValueRef = useRef<string>('{}');
 
+  // Ref to store handleInputChange to avoid effect dependency issues
+  const handleInputChangeRef = useRef<(value: string) => Promise<void>>();
+
   // Template switcher state
   const [templateSwitcherOpen, setTemplateSwitcherOpen] = useState(false);
 
@@ -120,8 +123,10 @@ const ActivationKeyEditor = () => {
 
   const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
 
-  // Compute dirty state after state destructuring
-  const isDirty = editorValue !== originalEditorValueRef.current && jwt !== '';
+  // Compute dirty state with useMemo to avoid unnecessary recalculations
+  const isDirty = useMemo(() => {
+    return editorValue !== originalEditorValueRef.current && jwt !== '';
+  }, [editorValue, jwt]);
 
   // Check if current JWT is expired
   const isJwtExpired = useCallback(() => {
@@ -140,12 +145,33 @@ const ActivationKeyEditor = () => {
 
   // Validate JWT when selected key changes
   useEffect(() => {
-    if (jwt && selectedKeyId) {
-      const selectedKey = getKeyPairById(selectedKeyId);
-      validateJWTSignature(jwt, selectedKey).then(result => {
-        dispatch({ type: 'SET_VALIDATION', payload: result });
-      });
+    if (!jwt) {
+      dispatch({ type: 'SET_VALIDATION', payload: null });
+      return;
     }
+
+    if (!selectedKeyId) {
+      dispatch({ type: 'SET_VALIDATION', payload: {
+        isValid: false,
+        error: 'No signing key selected',
+        errors: { signature: true, message: 'Please select a signing key' }
+      }});
+      return;
+    }
+
+    const selectedKey = getKeyPairById(selectedKeyId);
+    if (!selectedKey) {
+      dispatch({ type: 'SET_VALIDATION', payload: {
+        isValid: false,
+        error: 'Selected key not found',
+        errors: { signature: true, message: 'The selected key no longer exists' }
+      }});
+      return;
+    }
+
+    validateJWTSignature(jwt, selectedKey).then(result => {
+      dispatch({ type: 'SET_VALIDATION', payload: result });
+    });
   }, [selectedKeyId, jwt, getKeyPairById]);
 
   const handleInputChange = useCallback(async (value: string) => {
@@ -210,6 +236,9 @@ const ActivationKeyEditor = () => {
     }
   }, [selectedKeyId, getKeyPairById]);
 
+  // Keep ref in sync with callback
+  handleInputChangeRef.current = handleInputChange;
+
   // Check for pending template to load when templates are available
   useEffect(() => {
     const pendingTemplateId = localStorage.getItem(PENDING_TEMPLATE_KEY);
@@ -218,10 +247,10 @@ const ActivationKeyEditor = () => {
       if (template) {
         localStorage.removeItem(PENDING_TEMPLATE_KEY);
         setSourceTemplateId(template.id);
-        handleInputChange(template.activationKey);
+        handleInputChangeRef.current?.(template.activationKey);
       }
     }
-  }, [templates, getTemplateById, handleInputChange]);
+  }, [templates, getTemplateById]);
 
   const handleSign = useCallback(async () => {
     const selectedKey = getKeyPairById(selectedKeyId);
@@ -359,10 +388,18 @@ const ActivationKeyEditor = () => {
 
     // Set expiry to 24 hours ago
     const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    payload.exp = Math.floor(expiredDate.getTime() / 1000);
+
+    // Ensure exp is not before iat (issued at) if present
+    const iatTimestamp = payload.iat;
+    if (iatTimestamp && expiredDate.getTime() / 1000 < iatTimestamp) {
+      // Set exp to 1 second after iat to maintain valid temporal order
+      payload.exp = iatTimestamp + 1;
+    } else {
+      payload.exp = Math.floor(expiredDate.getTime() / 1000);
+    }
 
     try {
-      const expiredToken = await signJWT(payload, algorithm, selectedKey, expiredDate);
+      const expiredToken = await signJWT(payload, algorithm, selectedKey, new Date(payload.exp * 1000));
       return expiredToken;
     } catch (error) {
       console.error('Error generating expired AK:', error);

@@ -83,7 +83,8 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
       };
     }
 
-    if (!header.typ && header.typ !== undefined && header.typ !== 'JWT') {
+    // Validate typ if present - it should be 'JWT' or absent
+    if (header.typ !== undefined && header.typ !== 'JWT') {
       return {
         isValid: false,
         errorType: 'header',
@@ -113,13 +114,13 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
     };
   }
 
-  // Validate signature exists (basic check)
-  if (!signaturePart || signaturePart.length < 10) {
+  // Validate signature exists (jose library handles detailed validation)
+  if (!signaturePart) {
     return {
       isValid: false,
       errorType: 'structure',
-      message: 'Missing or invalid signature',
-      details: 'The signature section appears to be missing or too short. Make sure you copied the complete activation key.'
+      message: 'Missing signature',
+      details: 'The signature section is missing. Make sure you copied the complete activation key.'
     };
   }
 

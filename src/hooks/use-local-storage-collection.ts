@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
  * Base interface for items stored in localStorage collections.
@@ -54,31 +54,35 @@ export function useLocalStorageCollection<T extends StorableItem>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Load from localStorage on mount
+  // Store defaultItems in a ref to avoid effect re-runs when caller doesn't memoize
+  const defaultItemsRef = useRef(defaultItems);
+
+  // Load from localStorage on mount only
   useEffect(() => {
+    const defaults = defaultItemsRef.current;
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setItems(parsed);
-        } else if (defaultItems.length > 0) {
-          setItems(defaultItems);
-          localStorage.setItem(storageKey, JSON.stringify(defaultItems));
+        } else if (defaults.length > 0) {
+          setItems(defaults);
+          localStorage.setItem(storageKey, JSON.stringify(defaults));
         }
-      } else if (defaultItems.length > 0) {
-        setItems(defaultItems);
-        localStorage.setItem(storageKey, JSON.stringify(defaultItems));
+      } else if (defaults.length > 0) {
+        setItems(defaults);
+        localStorage.setItem(storageKey, JSON.stringify(defaults));
       }
     } catch (e) {
       setError(e instanceof Error ? e : new Error(`Failed to load ${entityName} from storage`));
-      if (defaultItems.length > 0) {
-        setItems(defaultItems);
+      if (defaults.length > 0) {
+        setItems(defaults);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [storageKey, entityName, defaultItems]);
+  }, [storageKey, entityName]);
 
   const persist = useCallback((newItems: T[]) => {
     try {
