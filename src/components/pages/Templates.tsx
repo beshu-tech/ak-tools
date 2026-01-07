@@ -8,6 +8,7 @@ import { Label } from '../ui/label';
 import { Plus, Pencil, Trash2, Copy, Check, AlertCircle, ExternalLink, FileText, Info } from 'lucide-react';
 import { useTemplates, AkTemplate } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
+import { useCrudState } from '../../hooks/use-crud-state';
 import { getJwtMetadata, validateActivationKeyFormat, AkValidationResult } from '../../utils/activationKey';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
@@ -30,18 +31,28 @@ const Templates = () => {
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplates();
   const { success, error: showError, confirm } = useToast();
 
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newTemplate, setNewTemplate] = useState<Omit<AkTemplate, 'id' | 'createdAt'>>(EMPTY_TEMPLATE);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<AkTemplate | null>(null);
+  const {
+    isAddingNew,
+    newItem: newTemplate,
+    setNewItem: setNewTemplate,
+    startAdding,
+    resetNew,
+    editingId,
+    editingItem: editingTemplate,
+    setEditingItem: setEditingTemplate,
+    toggleEdit,
+    cancelEditing,
+  } = useCrudState<AkTemplate, Omit<AkTemplate, 'id' | 'createdAt'>>({
+    emptyItem: EMPTY_TEMPLATE,
+  });
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [newAkValidation, setNewAkValidation] = useState<ValidationState>({ error: null, touched: false });
   const [editAkValidation, setEditAkValidation] = useState<ValidationState>({ error: null, touched: false });
 
   const resetNewTemplate = () => {
-    setNewTemplate(EMPTY_TEMPLATE);
+    resetNew();
     setNewAkValidation({ error: null, touched: false });
-    setIsAddingNew(false);
   };
 
   const validateTemplate = (template: Omit<AkTemplate, 'id' | 'createdAt'>): { nameError: string | null; akValidation: AkValidationResult | null } => {
@@ -87,16 +98,14 @@ const Templates = () => {
     }
   };
 
-  const handleEdit = (template: AkTemplate) => {
-    if (editingId === template.id) {
-      setEditingId(null);
-      setEditingTemplate(null);
-      setEditAkValidation({ error: null, touched: false });
-    } else {
-      setEditingId(template.id);
-      setEditingTemplate(template);
-      setEditAkValidation({ error: null, touched: false });
-    }
+  const handleToggleEdit = (template: AkTemplate) => {
+    toggleEdit(template);
+    setEditAkValidation({ error: null, touched: false });
+  };
+
+  const handleCancelEditing = () => {
+    cancelEditing();
+    setEditAkValidation({ error: null, touched: false });
   };
 
   const handleUpdateTemplate = () => {
@@ -123,9 +132,7 @@ const Templates = () => {
       activationKey: editingTemplate.activationKey.trim(),
     });
     success('Template updated');
-    setEditingId(null);
-    setEditingTemplate(null);
-    setEditAkValidation({ error: null, touched: false });
+    handleCancelEditing();
   };
 
   const copyToClipboard = async (activationKey: string, id: string) => {
@@ -182,7 +189,7 @@ const Templates = () => {
             </p>
           </div>
           <Button
-            onClick={() => setIsAddingNew(true)}
+            onClick={startAdding}
             disabled={isAddingNew}
             className="gap-2"
           >
@@ -318,11 +325,7 @@ const Templates = () => {
                           <div className="flex gap-2">
                             <Button
                               variant="ghost"
-                              onClick={() => {
-                                setEditingId(null);
-                                setEditingTemplate(null);
-                                setEditAkValidation({ error: null, touched: false });
-                              }}
+                              onClick={handleCancelEditing}
                             >
                               Cancel
                             </Button>
@@ -400,7 +403,7 @@ const Templates = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => handleEdit(template)}
+                                onClick={() => handleToggleEdit(template)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -425,7 +428,7 @@ const Templates = () => {
             <p className="text-sm text-muted-foreground mb-4">
               Create templates for quick access to your activation key configurations.
             </p>
-            <Button onClick={() => setIsAddingNew(true)} variant="outline" className="gap-2">
+            <Button onClick={startAdding} variant="outline" className="gap-2">
               <Plus className="h-4 w-4" />
               Create your first template
             </Button>

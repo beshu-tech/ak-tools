@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo } from 'react';
+import { useLocalStorageCollection } from './use-local-storage-collection';
 
 export interface AkTemplate {
   id: string;
@@ -35,89 +36,22 @@ interface UseTemplatesReturn {
 }
 
 export function useTemplates(): UseTemplatesReturn {
-  const [templates, setTemplates] = useState<AkTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // Memoize default templates to prevent useEffect re-runs
+  const defaultTemplates = useMemo(() => DEFAULT_TEMPLATES, []);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTemplates(parsed);
-        } else {
-          // Initialize with default templates if empty
-          setTemplates(DEFAULT_TEMPLATES);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_TEMPLATES));
-        }
-      } else {
-        // Initialize with default templates
-        setTemplates(DEFAULT_TEMPLATES);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_TEMPLATES));
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e : new Error('Failed to load templates from storage'));
-      setTemplates(DEFAULT_TEMPLATES);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const persistTemplates = useCallback((newTemplates: AkTemplate[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newTemplates));
-    } catch (e) {
-      setError(e instanceof Error ? e : new Error('Failed to save templates to storage'));
-    }
-  }, []);
-
-  const addTemplate = useCallback((template: Omit<AkTemplate, 'id' | 'createdAt'>): AkTemplate => {
-    const newTemplate: AkTemplate = {
-      ...template,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    };
-
-    setTemplates(prev => {
-      const updated = [...prev, newTemplate];
-      persistTemplates(updated);
-      return updated;
-    });
-
-    return newTemplate;
-  }, [persistTemplates]);
-
-  const updateTemplate = useCallback((id: string, updates: Partial<Omit<AkTemplate, 'id' | 'createdAt'>>) => {
-    setTemplates(prev => {
-      const updated = prev.map(template =>
-        template.id === id ? { ...template, ...updates } : template
-      );
-      persistTemplates(updated);
-      return updated;
-    });
-  }, [persistTemplates]);
-
-  const deleteTemplate = useCallback((id: string) => {
-    setTemplates(prev => {
-      const updated = prev.filter(template => template.id !== id);
-      persistTemplates(updated);
-      return updated;
-    });
-  }, [persistTemplates]);
-
-  const getTemplateById = useCallback((id: string): AkTemplate | undefined => {
-    return templates.find(template => template.id === id);
-  }, [templates]);
+  const { items, isLoading, error, add, update, remove, getById } = useLocalStorageCollection<AkTemplate>({
+    storageKey: STORAGE_KEY,
+    entityName: 'templates',
+    defaultItems: defaultTemplates,
+  });
 
   return {
-    templates,
+    templates: items,
     isLoading,
     error,
-    addTemplate,
-    updateTemplate,
-    deleteTemplate,
-    getTemplateById,
+    addTemplate: add,
+    updateTemplate: update,
+    deleteTemplate: remove,
+    getTemplateById: getById,
   };
 }

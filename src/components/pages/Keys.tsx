@@ -17,6 +17,7 @@ import { generateEC512KeyPair } from '../../utils/activationKey';
 import { exportKeyPairToZip, importKeyPairFromZip } from '../../utils/file-utils';
 import { useKeyPairs } from '../../hooks/use-key-pairs';
 import { useToast } from '../../hooks/use-toast';
+import { useCrudState } from '../../hooks/use-crud-state';
 import './Keys.css';
 
 const EMPTY_KEY_PAIR: Omit<KeyPair, 'id'> = {
@@ -30,17 +31,23 @@ const Keys = () => {
   const { keyPairs, addKeyPair, updateKeyPair, deleteKeyPair } = useKeyPairs();
   const { success, error: showError, confirm } = useToast();
 
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newKeyPair, setNewKeyPair] = useState<Omit<KeyPair, 'id'>>(EMPTY_KEY_PAIR);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingKeyPair, setEditingKeyPair] = useState<KeyPair | null>(null);
-  const [showSec1Info, setShowSec1Info] = useState(false);
+  const {
+    isAddingNew,
+    newItem: newKeyPair,
+    setNewItem: setNewKeyPair,
+    startAdding,
+    resetNew: resetNewKeyPair,
+    editingId,
+    editingItem: editingKeyPair,
+    setEditingItem: setEditingKeyPair,
+    toggleEdit,
+    cancelEditing,
+  } = useCrudState<KeyPair, Omit<KeyPair, 'id'>>({
+    emptyItem: EMPTY_KEY_PAIR,
+  });
 
-  const resetNewKeyPair = () => {
-    setNewKeyPair(EMPTY_KEY_PAIR);
-    setIsAddingNew(false);
-  };
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showSec1Info, setShowSec1Info] = useState(false);
 
   const handleSave = async () => {
     const trimmedKeyPair = {
@@ -76,16 +83,6 @@ const Keys = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleEdit = (pair: KeyPair) => {
-    if (editingId === pair.id) {
-      setEditingId(null);
-      setEditingKeyPair(null);
-    } else {
-      setEditingId(pair.id);
-      setEditingKeyPair(pair);
-    }
-  };
-
   const handleUpdateKey = () => {
     if (!editingKeyPair) return;
 
@@ -103,8 +100,7 @@ const Keys = () => {
 
     updateKeyPair(editingKeyPair.id, trimmedKeyPair);
     success('Key pair updated');
-    setEditingId(null);
-    setEditingKeyPair(null);
+    cancelEditing();
   };
 
   const handleGenerateKeys = async () => {
@@ -141,7 +137,7 @@ const Keys = () => {
         ...importedPair,
         createdAt: new Date().toISOString(),
       });
-      setIsAddingNew(true);
+      startAdding();
       success('Key pair imported - review and save');
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Error importing key pair');
@@ -218,7 +214,7 @@ const Keys = () => {
             </Tooltip>
           </TooltipProvider>
           <Button
-            onClick={() => setIsAddingNew(true)}
+            onClick={startAdding}
             disabled={isAddingNew}
             size="icon"
           >
@@ -310,7 +306,7 @@ const Keys = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEdit(pair);
+                        toggleEdit(pair);
                       }}
                     >
                       <Pencil className={`h-5 w-5 ${editingId === pair.id ? "text-primary" : ""}`} />
@@ -326,10 +322,7 @@ const Keys = () => {
                       keyPair={editingKeyPair || {}}
                       onChange={(e) => setEditingKeyPair((prev) => prev ? { ...prev, ...e } : null)}
                       onSave={handleUpdateKey}
-                      onCancel={() => {
-                        setEditingId(null);
-                        setEditingKeyPair(null);
-                      }}
+                      onCancel={cancelEditing}
                     />
                   ) : (
                     <>
