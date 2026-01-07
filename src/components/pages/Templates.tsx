@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle, AlertCircle, ExternalLink } from 'lucide-react';
-import { PageHeader } from '../ui/page-header';
+import { Plus, Pencil, Trash2, Copy, Check, AlertCircle, ExternalLink, FileText, Info } from 'lucide-react';
 import { useTemplates, AkTemplate } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
 import { getJwtMetadata, validateActivationKeyFormat, AkValidationResult } from '../../utils/activationKey';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 // Key for storing template to load in editor
 export const PENDING_TEMPLATE_KEY = 'pendingTemplateId';
@@ -32,7 +32,6 @@ const Templates = () => {
 
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newTemplate, setNewTemplate] = useState<Omit<AkTemplate, 'id' | 'createdAt'>>(EMPTY_TEMPLATE);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<AkTemplate | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -73,7 +72,7 @@ const Templates = () => {
         description: newTemplate.description?.trim(),
         activationKey: newTemplate.activationKey.trim(),
       });
-      success('Template created successfully');
+      success('Template created');
       resetNewTemplate();
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Error saving template');
@@ -81,15 +80,11 @@ const Templates = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const confirmed = await confirm('Are you sure you want to delete this template?');
+    const confirmed = await confirm('Delete this template?');
     if (confirmed) {
       deleteTemplate(id);
       success('Template deleted');
     }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
   };
 
   const handleEdit = (template: AkTemplate) => {
@@ -139,42 +134,36 @@ const Templates = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getTemplatePreview = (activationKey: string): { text: string; isExpired: boolean } => {
+  const getTemplateMetadata = (activationKey: string) => {
     const metadata = getJwtMetadata(activationKey);
-    if (!metadata) return { text: 'Invalid activation key', isExpired: false };
-    const expired = isAkExpired(activationKey);
+    if (!metadata) return { algorithm: 'Invalid', expiryText: '', isExpired: false };
+
+    const isExpired = metadata.expiresAt ? metadata.expiresAt < new Date() : false;
     const expiryText = metadata.expiresAt
-      ? `${expired ? 'Expired' : 'Expires'}: ${metadata.expiresAt.toLocaleDateString()}`
+      ? metadata.expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'No expiry';
+
     return {
-      text: `${metadata.algorithm || 'Unknown'} • ${expiryText}`,
-      isExpired: expired,
+      algorithm: metadata.algorithm || 'Unknown',
+      expiryText,
+      isExpired,
     };
   };
 
-  // Check if an activation key is expired
-  const isAkExpired = (activationKey: string): boolean => {
-    const metadata = getJwtMetadata(activationKey);
-    if (!metadata?.expiresAt) return false;
-    return metadata.expiresAt < new Date();
-  };
-
-  // Load template in editor
   const loadInEditor = (templateId: string) => {
     localStorage.setItem(PENDING_TEMPLATE_KEY, templateId);
     navigate('/');
   };
 
-  // Helper to render validation error
   const renderValidationError = (validation: ValidationState) => {
     if (!validation.touched || !validation.error || validation.error.isValid) return null;
     return (
-      <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+      <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
         <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
         <div className="text-sm">
           <p className="font-medium text-destructive">{validation.error.message}</p>
           {validation.error.details && (
-            <p className="text-destructive/80 mt-1">{validation.error.details}</p>
+            <p className="text-destructive/70 mt-0.5 text-xs">{validation.error.details}</p>
           )}
         </div>
       </div>
@@ -182,57 +171,50 @@ const Templates = () => {
   };
 
   return (
-    <div className="p-6">
-      <PageHeader
-        title="Activation Key Templates"
-        description="Manage your activation key templates for quick access"
-      />
-
-      {/* Safety Information */}
-      <div className="mt-4 mb-6 flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-        <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-        <div className="text-sm">
-          <p className="font-medium text-yellow-800 dark:text-yellow-200">Safety Notice</p>
-          <p className="text-yellow-700 dark:text-yellow-300 mt-1">
-            For security reasons, templates should only contain <strong>expired</strong> activation keys.
-            This prevents accidental distribution of valid licenses. When you load a template,
-            you can modify the expiry date and re-sign it with your keys to create a valid key.
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex justify-end gap-2">
+    <TooltipProvider>
+      <div className="p-6 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
+            <p className="text-muted-foreground mt-1">
+              Reusable activation key configurations
+            </p>
+          </div>
           <Button
             onClick={() => setIsAddingNew(true)}
             disabled={isAddingNew}
-            size="icon"
+            className="gap-2"
           >
             <Plus className="h-4 w-4" />
+            New Template
           </Button>
         </div>
 
+        {/* Add New Template Form */}
         {isAddingNew && (
-          <Card className="mb-6">
+          <Card className="mb-6 border-primary/20">
             <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={newTemplate.name}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
-                  placeholder="e.g., ReadonlyREST Enterprise"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Input
-                  id="description"
-                  value={newTemplate.description || ''}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-                  placeholder="e.g., Template for enterprise licenses"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={newTemplate.name}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                    placeholder="Enterprise License"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input
+                    id="description"
+                    value={newTemplate.description || ''}
+                    onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
+                    placeholder="Standard enterprise template"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -251,193 +233,206 @@ const Templates = () => {
                       setNewAkValidation({ error: validateActivationKeyFormat(newTemplate.activationKey), touched: true });
                     }
                   }}
-                  placeholder="Paste your activation key here"
-                  className={`font-mono text-xs min-h-[100px] ${newAkValidation.touched && newAkValidation.error && !newAkValidation.error.isValid ? 'border-destructive' : ''}`}
+                  placeholder="Paste activation key..."
+                  className={`font-mono text-xs h-24 resize-none ${newAkValidation.touched && newAkValidation.error && !newAkValidation.error.isValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                 />
                 {renderValidationError(newAkValidation)}
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={resetNewTemplate}>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={resetNewTemplate}>
                   Cancel
                 </Button>
                 <Button onClick={handleSave}>
-                  Create
+                  Create Template
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        <div className="space-y-4">
-          {templates.map((template) => (
-            <Card key={template.id}>
-              <CardHeader
-                className="relative cursor-pointer hover:bg-secondary/10 transition-colors px-6 py-4"
-                onClick={() => toggleExpand(template.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="pointer-events-none p-0 hover:bg-transparent"
-                    >
-                      {expandedId === template.id ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </Button>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg font-semibold">{template.name}</CardTitle>
-                        {!getTemplatePreview(template.activationKey).isExpired && (
-                          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
-                            Not Expired
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {template.description || getTemplatePreview(template.activationKey).text}
-                      </p>
-                    </div>
-                  </div>
+        {/* Templates List */}
+        {templates.length > 0 ? (
+          <div className="space-y-3">
+            {templates.map((template) => {
+              const meta = getTemplateMetadata(template.activationKey);
+              const isEditing = editingId === template.id;
 
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        loadInEditor(template.id);
-                      }}
-                      title="Load in Editor"
-                    >
-                      <ExternalLink className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        copyToClipboard(template.activationKey, template.id);
-                      }}
-                      title="Copy to clipboard"
-                    >
-                      {copiedId === template.id ? (
-                        <Check className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Copy className="h-5 w-5" />
-                      )}
-                    </Button>
-                    {editingId === template.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(template.id);
-                        }}
-                        title="Delete template"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
+              return (
+                <Card key={template.id} className={isEditing ? 'ring-1 ring-primary/30' : ''}>
+                  <CardContent className="p-4">
+                    {isEditing ? (
+                      // Edit Mode
+                      <div className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-name-${template.id}`}>Name</Label>
+                            <Input
+                              id={`edit-name-${template.id}`}
+                              value={editingTemplate?.name || ''}
+                              onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
+                              autoFocus
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-description-${template.id}`}>Description</Label>
+                            <Input
+                              id={`edit-description-${template.id}`}
+                              value={editingTemplate?.description || ''}
+                              onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, description: e.target.value } : null)}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`edit-ak-${template.id}`}>Activation Key</Label>
+                          <Textarea
+                            id={`edit-ak-${template.id}`}
+                            value={editingTemplate?.activationKey || ''}
+                            onChange={(e) => {
+                              setEditingTemplate(prev => prev ? { ...prev, activationKey: e.target.value } : null);
+                              if (editAkValidation.touched) {
+                                setEditAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
+                              }
+                            }}
+                            onBlur={() => {
+                              if (editingTemplate?.activationKey.trim()) {
+                                setEditAkValidation({ error: validateActivationKeyFormat(editingTemplate.activationKey), touched: true });
+                              }
+                            }}
+                            className={`font-mono text-xs h-24 resize-none ${editAkValidation.touched && editAkValidation.error && !editAkValidation.error.isValid ? 'border-destructive' : ''}`}
+                          />
+                          {renderValidationError(editAkValidation)}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDelete(template.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingId(null);
+                                setEditingTemplate(null);
+                                setEditAkValidation({ error: null, touched: false });
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button onClick={handleUpdateTemplate}>
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // View Mode
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium truncate">{template.name}</h3>
+                            {!meta.isExpired && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded">
+                                    <Info className="h-3 w-3" />
+                                    Active
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs max-w-[200px]">This template contains a non-expired key. Consider using expired keys for safety.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate mt-0.5">
+                            {template.description || (
+                              <span className="font-mono text-xs">
+                                {meta.algorithm} · {meta.isExpired ? 'Expired' : 'Expires'} {meta.expiryText}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => loadInEditor(template.id)}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Open in Editor</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => copyToClipboard(template.activationKey, template.id)}
+                              >
+                                {copiedId === template.id ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copy to Clipboard</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleEdit(template)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </div>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(template);
-                      }}
-                      title="Edit template"
-                    >
-                      <Pencil className={`h-5 w-5 ${editingId === template.id ? "text-primary" : ""}`} />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              {(expandedId === template.id || editingId === template.id) && (
-                <CardContent className="space-y-4 px-6 py-4">
-                  {editingId === template.id ? (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`edit-name-${template.id}`}>Name</Label>
-                        <Input
-                          id={`edit-name-${template.id}`}
-                          value={editingTemplate?.name || ''}
-                          onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`edit-description-${template.id}`}>Description</Label>
-                        <Input
-                          id={`edit-description-${template.id}`}
-                          value={editingTemplate?.description || ''}
-                          onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, description: e.target.value } : null)}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={`edit-activationKey-${template.id}`}>Activation Key</Label>
-                        <Textarea
-                          id={`edit-activationKey-${template.id}`}
-                          value={editingTemplate?.activationKey || ''}
-                          onChange={(e) => {
-                            setEditingTemplate(prev => prev ? { ...prev, activationKey: e.target.value } : null);
-                            if (editAkValidation.touched) {
-                              setEditAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
-                            }
-                          }}
-                          onBlur={() => {
-                            if (editingTemplate?.activationKey.trim()) {
-                              setEditAkValidation({ error: validateActivationKeyFormat(editingTemplate.activationKey), touched: true });
-                            }
-                          }}
-                          className={`font-mono text-xs min-h-[100px] ${editAkValidation.touched && editAkValidation.error && !editAkValidation.error.isValid ? 'border-destructive' : ''}`}
-                        />
-                        {renderValidationError(editAkValidation)}
-                      </div>
-
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditingTemplate(null);
-                            setEditAkValidation({ error: null, touched: false });
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button onClick={handleUpdateTemplate}>
-                          Save
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label>Activation Key</Label>
-                      <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
-                        {template.activationKey}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-          ))}
-
-          {templates.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No templates yet. Click the + button to create one.</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          // Empty State
+          <div className="text-center py-16">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+              <FileText className="h-6 w-6 text-muted-foreground" />
             </div>
-          )}
-        </div>
+            <h3 className="font-medium mb-1">No templates yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Create templates for quick access to your activation key configurations.
+            </p>
+            <Button onClick={() => setIsAddingNew(true)} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create your first template
+            </Button>
+          </div>
+        )}
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 
