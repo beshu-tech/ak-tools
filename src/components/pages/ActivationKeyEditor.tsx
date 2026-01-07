@@ -25,6 +25,7 @@ interface EditorState {
   editorValue: string;
   algorithm: Algorithm;
   expiryDate: Date | undefined;
+  issuedDate: Date | undefined;
   selectedKeyId: string;
   validation: ValidationResult | null;
   showCopied: boolean;
@@ -33,10 +34,11 @@ interface EditorState {
 // Action types for the reducer
 type EditorAction =
   | { type: 'SET_INPUT'; payload: string }
-  | { type: 'SET_JWT'; payload: { jwt: string; editorValue: string; algorithm?: Algorithm; expiryDate?: Date } }
+  | { type: 'SET_JWT'; payload: { jwt: string; editorValue: string; algorithm?: Algorithm; expiryDate?: Date; issuedDate?: Date } }
   | { type: 'SET_EDITOR_VALUE'; payload: string }
   | { type: 'SET_ALGORITHM'; payload: Algorithm }
   | { type: 'SET_EXPIRY_DATE'; payload: Date | undefined }
+  | { type: 'SET_ISSUED_DATE'; payload: Date | undefined }
   | { type: 'SET_SELECTED_KEY'; payload: string }
   | { type: 'SET_VALIDATION'; payload: ValidationResult | null }
   | { type: 'SHOW_COPIED' }
@@ -49,6 +51,7 @@ const initialState: EditorState = {
   editorValue: '{}',
   algorithm: 'ES512',
   expiryDate: undefined,
+  issuedDate: undefined,
   selectedKeyId: '',
   validation: null,
   showCopied: false,
@@ -65,6 +68,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         editorValue: action.payload.editorValue,
         algorithm: action.payload.algorithm ?? state.algorithm,
         expiryDate: action.payload.expiryDate ?? state.expiryDate,
+        issuedDate: action.payload.issuedDate ?? state.issuedDate,
       };
     case 'SET_EDITOR_VALUE':
       return { ...state, editorValue: action.payload };
@@ -72,6 +76,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, algorithm: action.payload };
     case 'SET_EXPIRY_DATE':
       return { ...state, expiryDate: action.payload };
+    case 'SET_ISSUED_DATE':
+      return { ...state, issuedDate: action.payload };
     case 'SET_SELECTED_KEY':
       return { ...state, selectedKeyId: action.payload };
     case 'SET_VALIDATION':
@@ -93,7 +99,7 @@ const ActivationKeyEditor = () => {
   const { error: showError } = useToast();
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
-  const { inputValue, jwt, editorValue, algorithm, expiryDate, selectedKeyId, validation, showCopied } = state;
+  const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
 
   // Set initial selected key when keyPairs load
   useEffect(() => {
@@ -124,6 +130,7 @@ const ActivationKeyEditor = () => {
     const metadata = getJwtMetadata(value);
     let newAlgorithm: Algorithm | undefined;
     let newExpiryDate: Date | undefined;
+    let newIssuedDate: Date | undefined;
 
     if (metadata) {
       if (metadata.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
@@ -131,6 +138,9 @@ const ActivationKeyEditor = () => {
       }
       if (metadata.expiresAt) {
         newExpiryDate = new Date(metadata.expiresAt);
+      }
+      if (metadata.issuedAt) {
+        newIssuedDate = new Date(metadata.issuedAt);
       }
     }
 
@@ -150,6 +160,7 @@ const ActivationKeyEditor = () => {
         editorValue: payloadOnly,
         algorithm: newAlgorithm,
         expiryDate: newExpiryDate,
+        issuedDate: newIssuedDate,
       },
     });
 
@@ -183,6 +194,11 @@ const ActivationKeyEditor = () => {
       payload.exp = Math.floor(expiryDate.getTime() / 1000);
     }
 
+    // Only override iat if a new issued date is selected
+    if (issuedDate) {
+      payload.iat = Math.floor(issuedDate.getTime() / 1000);
+    }
+
     try {
       const newToken = await signJWT(
         payload,
@@ -208,7 +224,7 @@ const ActivationKeyEditor = () => {
       console.error('Signing error:', error);
       showError('Failed to sign JWT');
     }
-  }, [selectedKeyId, editorValue, expiryDate, algorithm, getKeyPairById, showError]);
+  }, [selectedKeyId, editorValue, expiryDate, issuedDate, algorithm, getKeyPairById, showError]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -316,6 +332,8 @@ const ActivationKeyEditor = () => {
                     metadata={getJwtMetadata(jwt)!}
                     expiryDate={expiryDate}
                     onExpiryChange={(date) => dispatch({ type: 'SET_EXPIRY_DATE', payload: date })}
+                    issuedDate={issuedDate}
+                    onIssuedChange={(date) => dispatch({ type: 'SET_ISSUED_DATE', payload: date })}
                   />
                 )}
 

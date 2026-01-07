@@ -11,12 +11,16 @@ interface ActivationKeyMetadataDisplayProps {
   metadata: ActivationKeyMetadata;
   expiryDate?: Date;
   onExpiryChange?: (date: Date | undefined) => void;
+  issuedDate?: Date;
+  onIssuedChange?: (date: Date | undefined) => void;
 }
 
-export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplayProps> = ({ 
-  metadata, 
+export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplayProps> = ({
+  metadata,
   expiryDate,
-  onExpiryChange 
+  onExpiryChange,
+  issuedDate,
+  onIssuedChange,
 }) => {
   return (
     <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
@@ -34,9 +38,27 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
         <KeyRound className="h-5 w-5 text-muted-foreground" />
         <div className="text-center">
           <div className="text-sm font-medium">Issued</div>
-          <div className="text-sm text-muted-foreground">
-            {formatRelativeTime(metadata.issuedAt)}
-          </div>
+          {onIssuedChange ? (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="link" className="h-auto p-0 text-sm text-muted-foreground hover:no-underline">
+                  {issuedDate ? format(issuedDate, 'd MMM yyyy') : formatRelativeTime(metadata.issuedAt)}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={issuedDate}
+                  onSelect={onIssuedChange}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              {formatRelativeTime(metadata.issuedAt)}
+            </div>
+          )}
         </div>
       </div>
 
