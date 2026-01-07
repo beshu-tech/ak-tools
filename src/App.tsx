@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
-import { Key, ShieldCheck, FileText } from 'lucide-react';
+import { Key, ShieldCheck, FileText, ExternalLink } from 'lucide-react';
 import { ThemeProvider } from './hooks/use-theme';
 import { ToastProvider } from './hooks/use-toast';
 import { ThemeToggle } from './components/ui/theme-toggle';
@@ -21,7 +21,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="ak-tools-theme">
       <ToastProvider>
       <Router>
-        <div className="min-h-screen page-pattern">
+        <div className="min-h-screen page-pattern flex flex-col">
           <nav className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
             <div className="container mx-auto px-4">
               <div className="flex items-center justify-between h-16">
@@ -78,13 +78,62 @@ function App() {
             </div>
           </nav>
 
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-8 flex-1">
             <Routes>
               <Route path="/" element={<ActivationKeyEditor />} />
               <Route path="/templates" element={<Templates />} />
               <Route path="/keys" element={<Keys />} />
             </Routes>
           </main>
+
+          <footer className="border-t bg-card/60 backdrop-blur-sm mt-auto">
+            <div className="container mx-auto px-4 py-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>© {new Date().getFullYear()}</span>
+                  <a
+                    href="https://beshu.tech/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-foreground hover:text-primary transition-colors"
+                  >
+                    Beshu Tech
+                  </a>
+                  <span>— All rights reserved</span>
+                </div>
+
+                <div className="flex items-center gap-6">
+                  <a
+                    href="https://readonlyrest.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors group"
+                  >
+                    <span>ReadonlyREST</span>
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                  <a
+                    href="https://anaphora.it/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors group"
+                  >
+                    <span>Anaphora</span>
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                  <a
+                    href="https://beshu.tech/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors group"
+                  >
+                    <span>Beshu</span>
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </footer>
         </div>
       </Router>
       </ToastProvider>
