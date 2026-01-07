@@ -199,19 +199,18 @@ const ActivationKeyEditor = () => {
     }
   }, [selectedKeyId, getKeyPairById]);
 
-  // Check for pending template to load on mount
+  // Check for pending template to load when templates are available
   useEffect(() => {
     const pendingTemplateId = localStorage.getItem(PENDING_TEMPLATE_KEY);
-    if (pendingTemplateId) {
-      localStorage.removeItem(PENDING_TEMPLATE_KEY);
+    if (pendingTemplateId && templates.length > 0) {
       const template = getTemplateById(pendingTemplateId);
       if (template) {
+        localStorage.removeItem(PENDING_TEMPLATE_KEY);
         setSourceTemplateId(template.id);
         handleInputChange(template.activationKey);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [templates, getTemplateById, handleInputChange]);
 
   const handleSign = useCallback(async () => {
     const selectedKey = getKeyPairById(selectedKeyId);
