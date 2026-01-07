@@ -98,15 +98,19 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 const ActivationKeyEditor = () => {
   const { theme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
-  const { templates, addTemplate } = useTemplates();
-  const { error: showError, success: showSuccess, warning: showWarning } = useToast();
+  const { templates, addTemplate, updateTemplate, getTemplateById } = useTemplates();
+  const { error: showError, success: showSuccess, confirm } = useToast();
   const [state, dispatch] = useReducer(editorReducer, initialState);
+
+  // Track source template (when loaded from a template)
+  const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
 
   // Save as template state
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+  const [saveAsExpired, setSaveAsExpired] = useState(false);
 
   const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
 
@@ -251,6 +255,7 @@ const ActivationKeyEditor = () => {
 
   const clearJwt = useCallback(() => {
     dispatch({ type: 'CLEAR' });
+    setSourceTemplateId(null);
     if (keyPairs.length > 0) {
       dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
     }
@@ -258,18 +263,67 @@ const ActivationKeyEditor = () => {
 
   // Handle opening save template popover
   const handleSaveTemplateClick = useCallback(() => {
-    if (!isJwtExpired()) {
-      setShowExpiryWarning(true);
-    } else {
-      setShowExpiryWarning(false);
-    }
+    const notExpired = !isJwtExpired();
+    setShowExpiryWarning(notExpired);
+    setSaveAsExpired(notExpired); // Default to save as expired if not already expired
     setSaveTemplateOpen(true);
+
+    // Pre-fill with source template info if loaded from a template
+    if (sourceTemplateId) {
+      const sourceTemplate = getTemplateById(sourceTemplateId);
+      if (sourceTemplate) {
+        setTemplateName(sourceTemplate.name);
+        setTemplateDescription(sourceTemplate.description || '');
+        return;
+      }
+    }
+
     setTemplateName('');
     setTemplateDescription('');
-  }, [isJwtExpired]);
+  }, [isJwtExpired, sourceTemplateId, getTemplateById]);
+
+  // Find existing template by name
+  const findTemplateByName = useCallback((name: string) => {
+    return templates.find(t => t.name.toLowerCase() === name.toLowerCase());
+  }, [templates]);
+
+  // Generate activation key with modified expiry for template saving
+  const getActivationKeyForTemplate = useCallback(async (): Promise<string | null> => {
+    if (!saveAsExpired || isJwtExpired()) {
+      return jwt; // Return current AK as-is
+    }
+
+    // Need to sign a new AK with expiry 24h before now
+    const selectedKey = getKeyPairById(selectedKeyId);
+    if (!selectedKey) {
+      showError('No signing key selected');
+      return null;
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(editorValue);
+    } catch {
+      showError('Invalid JSON payload');
+      return null;
+    }
+
+    // Set expiry to 24 hours ago
+    const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    payload.exp = Math.floor(expiredDate.getTime() / 1000);
+
+    try {
+      const expiredToken = await signJWT(payload, algorithm, selectedKey, expiredDate);
+      return expiredToken;
+    } catch (error) {
+      console.error('Error generating expired AK:', error);
+      showError('Failed to generate expired activation key');
+      return null;
+    }
+  }, [saveAsExpired, isJwtExpired, jwt, selectedKeyId, editorValue, algorithm, getKeyPairById, showError]);
 
   // Handle saving template
-  const handleSaveTemplate = useCallback(() => {
+  const handleSaveTemplate = useCallback(async () => {
     if (!templateName.trim()) {
       showError('Please enter a template name');
       return;
@@ -280,23 +334,54 @@ const ActivationKeyEditor = () => {
       return;
     }
 
-    // Check expiry and warn (but still allow saving)
-    if (!isJwtExpired()) {
-      showWarning('Warning: This activation key is not expired. For safety, templates should use expired keys.');
+    const trimmedName = templateName.trim();
+    const existingTemplate = findTemplateByName(trimmedName);
+    const isOverwrite = existingTemplate && existingTemplate.id === sourceTemplateId;
+    const isNameConflict = existingTemplate && existingTemplate.id !== sourceTemplateId;
+
+    // If name conflicts with a different template, warn and ask
+    if (isNameConflict) {
+      const confirmed = await confirm(
+        `A template named "${trimmedName}" already exists. Do you want to overwrite it?`
+      );
+      if (!confirmed) return;
     }
 
-    addTemplate({
-      name: templateName.trim(),
-      description: templateDescription.trim() || undefined,
-      activationKey: jwt,
-    });
+    // If overwriting source template, ask for confirmation
+    if (isOverwrite) {
+      const confirmed = await confirm(
+        `Do you want to update the existing template "${trimmedName}"?`
+      );
+      if (!confirmed) return;
+    }
 
-    showSuccess('Template saved successfully');
+    // Get the activation key (possibly with modified expiry)
+    const activationKeyToSave = await getActivationKeyForTemplate();
+    if (!activationKeyToSave) return;
+
+    // Save or update
+    if (existingTemplate) {
+      updateTemplate(existingTemplate.id, {
+        name: trimmedName,
+        description: templateDescription.trim() || undefined,
+        activationKey: activationKeyToSave,
+      });
+      showSuccess('Template updated successfully');
+    } else {
+      addTemplate({
+        name: trimmedName,
+        description: templateDescription.trim() || undefined,
+        activationKey: activationKeyToSave,
+      });
+      showSuccess('Template saved successfully');
+    }
+
     setSaveTemplateOpen(false);
     setTemplateName('');
     setTemplateDescription('');
     setShowExpiryWarning(false);
-  }, [templateName, templateDescription, jwt, isJwtExpired, addTemplate, showError, showSuccess, showWarning]);
+    setSaveAsExpired(false);
+  }, [templateName, templateDescription, jwt, sourceTemplateId, findTemplateByName, getActivationKeyForTemplate, updateTemplate, addTemplate, showError, showSuccess, confirm]);
 
   return (
     <div className="ak-editor-container">
@@ -330,7 +415,10 @@ const ActivationKeyEditor = () => {
                     templates.map((template) => (
                       <button
                         key={template.id}
-                        onClick={() => handleInputChange(template.activationKey)}
+                        onClick={() => {
+                          setSourceTemplateId(template.id);
+                          handleInputChange(template.activationKey);
+                        }}
                         className="w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors"
                       >
                         <div className="text-sm font-medium">{template.name}</div>
@@ -466,12 +554,25 @@ const ActivationKeyEditor = () => {
                         </div>
 
                         {showExpiryWarning && (
-                          <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                            <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                            <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                              <strong>Warning:</strong> This activation key is not expired.
-                              For safety reasons, templates should contain expired keys only.
-                              You can still save it, but consider using an expired key.
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md space-y-3">
+                            <div className="flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                              <div className="text-xs text-yellow-800 dark:text-yellow-200">
+                                <strong>Notice:</strong> This activation key is not expired.
+                                For safety reasons, templates should contain expired keys only.
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 pl-6">
+                              <input
+                                type="checkbox"
+                                id="save-as-expired"
+                                checked={saveAsExpired}
+                                onChange={(e) => setSaveAsExpired(e.target.checked)}
+                                className="h-4 w-4 rounded border-yellow-600 text-yellow-600 focus:ring-yellow-500"
+                              />
+                              <label htmlFor="save-as-expired" className="text-xs text-yellow-800 dark:text-yellow-200 cursor-pointer">
+                                Save as expired (set expiry to 24h ago)
+                              </label>
                             </div>
                           </div>
                         )}
@@ -509,7 +610,9 @@ const ActivationKeyEditor = () => {
                             size="sm"
                             onClick={handleSaveTemplate}
                           >
-                            Save Template
+                            {sourceTemplateId && findTemplateByName(templateName)?.id === sourceTemplateId
+                              ? 'Update Template'
+                              : 'Save Template'}
                           </Button>
                         </div>
                       </div>
