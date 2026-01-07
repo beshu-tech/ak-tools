@@ -1,10 +1,12 @@
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import Editor from "@monaco-editor/react";
 import { Button } from '../ui/button';
-import { X, Check, Copy, FileText, Plus } from 'lucide-react';
+import { X, Check, Copy, FileText, Plus, Save, AlertTriangle } from 'lucide-react';
 import { Algorithm, SUPPORTED_ALGORITHMS } from '../../types/activationKey';
 import { decodeJWT, getJwtMetadata, signJWT, validateJWTSignature, ValidationResult } from '../../utils/activationKey';
 import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMetadata';
@@ -96,11 +98,25 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 const ActivationKeyEditor = () => {
   const { theme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
-  const { templates } = useTemplates();
-  const { error: showError } = useToast();
+  const { templates, addTemplate } = useTemplates();
+  const { error: showError, success: showSuccess, warning: showWarning } = useToast();
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
+  // Save as template state
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+
   const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
+
+  // Check if current JWT is expired
+  const isJwtExpired = useCallback(() => {
+    if (!jwt) return false;
+    const metadata = getJwtMetadata(jwt);
+    if (!metadata?.expiresAt) return false;
+    return metadata.expiresAt < new Date();
+  }, [jwt]);
 
   // Set initial selected key when keyPairs load
   useEffect(() => {
@@ -239,6 +255,48 @@ const ActivationKeyEditor = () => {
       dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
     }
   }, [keyPairs]);
+
+  // Handle opening save template popover
+  const handleSaveTemplateClick = useCallback(() => {
+    if (!isJwtExpired()) {
+      setShowExpiryWarning(true);
+    } else {
+      setShowExpiryWarning(false);
+    }
+    setSaveTemplateOpen(true);
+    setTemplateName('');
+    setTemplateDescription('');
+  }, [isJwtExpired]);
+
+  // Handle saving template
+  const handleSaveTemplate = useCallback(() => {
+    if (!templateName.trim()) {
+      showError('Please enter a template name');
+      return;
+    }
+
+    if (!jwt) {
+      showError('No activation key to save');
+      return;
+    }
+
+    // Check expiry and warn (but still allow saving)
+    if (!isJwtExpired()) {
+      showWarning('Warning: This activation key is not expired. For safety, templates should use expired keys.');
+    }
+
+    addTemplate({
+      name: templateName.trim(),
+      description: templateDescription.trim() || undefined,
+      jwt: jwt,
+    });
+
+    showSuccess('Template saved successfully');
+    setSaveTemplateOpen(false);
+    setTemplateName('');
+    setTemplateDescription('');
+    setShowExpiryWarning(false);
+  }, [templateName, templateDescription, jwt, isJwtExpired, addTemplate, showError, showSuccess, showWarning]);
 
   return (
     <div className="ak-editor-container">
@@ -385,6 +443,78 @@ const ActivationKeyEditor = () => {
                   >
                     Generate Activation Key
                   </Button>
+
+                  <Popover open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={handleSaveTemplateClick}
+                      >
+                        <Save className="h-4 w-4" />
+                        Save as template
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" align="start">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Save as Template</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Save this activation key as a reusable template.
+                          </p>
+                        </div>
+
+                        {showExpiryWarning && (
+                          <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                            <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                            <div className="text-xs text-yellow-800 dark:text-yellow-200">
+                              <strong>Warning:</strong> This activation key is not expired.
+                              For safety reasons, templates should contain expired keys only.
+                              You can still save it, but consider using an expired key.
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label htmlFor="template-name" className="text-sm">Name *</Label>
+                          <Input
+                            id="template-name"
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            placeholder="e.g., ReadonlyREST Enterprise"
+                            autoFocus
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="template-description" className="text-sm">Description (optional)</Label>
+                          <Input
+                            id="template-description"
+                            value={templateDescription}
+                            onChange={(e) => setTemplateDescription(e.target.value)}
+                            placeholder="e.g., Template for enterprise licenses"
+                          />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSaveTemplateOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveTemplate}
+                          >
+                            Save Template
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {jwt && (

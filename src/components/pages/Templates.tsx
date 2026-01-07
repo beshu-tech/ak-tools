@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '../ui/page-header';
 import { useTemplates, JwtTemplate } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
@@ -114,10 +114,24 @@ const Templates = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getTemplatePreview = (jwt: string): string => {
+  const getTemplatePreview = (jwt: string): { text: string; isExpired: boolean } => {
     const metadata = getJwtMetadata(jwt);
-    if (!metadata) return 'Invalid JWT';
-    return `${metadata.algorithm || 'Unknown'} • Expires: ${metadata.expiresAt?.toLocaleDateString() || 'Never'}`;
+    if (!metadata) return { text: 'Invalid JWT', isExpired: false };
+    const expired = isJwtExpired(jwt);
+    const expiryText = metadata.expiresAt
+      ? `${expired ? 'Expired' : 'Expires'}: ${metadata.expiresAt.toLocaleDateString()}`
+      : 'No expiry';
+    return {
+      text: `${metadata.algorithm || 'Unknown'} • ${expiryText}`,
+      isExpired: expired,
+    };
+  };
+
+  // Check if a JWT is expired
+  const isJwtExpired = (jwt: string): boolean => {
+    const metadata = getJwtMetadata(jwt);
+    if (!metadata?.expiresAt) return false;
+    return metadata.expiresAt < new Date();
   };
 
   return (
@@ -127,7 +141,20 @@ const Templates = () => {
         description="Manage your activation key templates for quick access"
       />
 
-      <div className="space-y-4 mt-6">
+      {/* Safety Information */}
+      <div className="mt-4 mb-6 flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+        <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+        <div className="text-sm">
+          <p className="font-medium text-yellow-800 dark:text-yellow-200">Safety Notice</p>
+          <p className="text-yellow-700 dark:text-yellow-300 mt-1">
+            For security reasons, templates should only contain <strong>expired</strong> activation keys.
+            This prevents accidental distribution of valid licenses. When you load a template,
+            you can modify the expiry date and re-sign it with your keys to create a valid key.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         <div className="flex justify-end gap-2">
           <Button
             onClick={() => setIsAddingNew(true)}
@@ -205,9 +232,16 @@ const Templates = () => {
                       )}
                     </Button>
                     <div>
-                      <CardTitle className="text-lg font-semibold">{template.name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg font-semibold">{template.name}</CardTitle>
+                        {!getTemplatePreview(template.jwt).isExpired && (
+                          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
+                            Not Expired
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {template.description || getTemplatePreview(template.jwt)}
+                        {template.description || getTemplatePreview(template.jwt).text}
                       </p>
                     </div>
                   </div>
