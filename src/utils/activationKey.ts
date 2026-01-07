@@ -25,6 +25,128 @@ export const getJwtMetadata = (token: string): ActivationKeyMetadata | null => {
   }
 };
 
+export interface AkValidationError {
+  isValid: false;
+  errorType: 'empty' | 'format' | 'header' | 'payload' | 'structure';
+  message: string;
+  details?: string;
+}
+
+export interface AkValidationSuccess {
+  isValid: true;
+  metadata: ActivationKeyMetadata;
+}
+
+export type AkValidationResult = AkValidationError | AkValidationSuccess;
+
+/**
+ * Validates an activation key format with verbose error messages
+ */
+export const validateActivationKeyFormat = (token: string): AkValidationResult => {
+  const trimmedToken = token.trim();
+
+  // Check if empty
+  if (!trimmedToken) {
+    return {
+      isValid: false,
+      errorType: 'empty',
+      message: 'Activation key is required',
+      details: 'Please paste a valid activation key in the input field.'
+    };
+  }
+
+  // Check basic structure (should have 3 parts separated by dots)
+  const parts = trimmedToken.split('.');
+  if (parts.length !== 3) {
+    return {
+      isValid: false,
+      errorType: 'structure',
+      message: 'Invalid activation key structure',
+      details: `Expected 3 parts separated by dots (header.payload.signature), but found ${parts.length} part${parts.length === 1 ? '' : 's'}. Make sure you copied the complete activation key.`
+    };
+  }
+
+  // Check if parts are valid base64url
+  const [headerPart, payloadPart, signaturePart] = parts;
+
+  // Validate header
+  try {
+    const headerJson = atob(headerPart.replace(/-/g, '+').replace(/_/g, '/'));
+    const header = JSON.parse(headerJson);
+
+    if (!header.alg) {
+      return {
+        isValid: false,
+        errorType: 'header',
+        message: 'Missing algorithm in header',
+        details: 'The activation key header is missing the "alg" (algorithm) field. This is required for signature verification.'
+      };
+    }
+
+    // Validate typ if present - it should be 'JWT' or absent
+    if (header.typ !== undefined && header.typ !== 'JWT') {
+      return {
+        isValid: false,
+        errorType: 'header',
+        message: 'Invalid token type in header',
+        details: `Expected type "JWT" but found "${header.typ}".`
+      };
+    }
+  } catch (e) {
+    return {
+      isValid: false,
+      errorType: 'header',
+      message: 'Invalid activation key header',
+      details: 'The header section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.'
+    };
+  }
+
+  // Validate payload
+  try {
+    const payloadJson = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
+    JSON.parse(payloadJson);
+  } catch (e) {
+    return {
+      isValid: false,
+      errorType: 'payload',
+      message: 'Invalid activation key payload',
+      details: 'The payload section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.'
+    };
+  }
+
+  // Validate signature exists (jose library handles detailed validation)
+  if (!signaturePart) {
+    return {
+      isValid: false,
+      errorType: 'structure',
+      message: 'Missing signature',
+      details: 'The signature section is missing. Make sure you copied the complete activation key.'
+    };
+  }
+
+  // If we get here, try to extract full metadata
+  try {
+    const decoded = jose.decodeJwt(trimmedToken);
+    const header = jose.decodeProtectedHeader(trimmedToken);
+
+    return {
+      isValid: true,
+      metadata: {
+        algorithm: header.alg ?? null,
+        issuedAt: decoded.iat ? new Date(decoded.iat * 1000) : null,
+        expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : null,
+      }
+    };
+  } catch (e) {
+    return {
+      isValid: false,
+      errorType: 'format',
+      message: 'Failed to parse activation key',
+      details: e instanceof Error ? e.message : 'An unexpected error occurred while parsing the activation key.'
+    };
+  }
+};
+
 export const formatRelativeTime = (date: Date | null, isExpiry = false): string => {
   if (!date) return 'Not specified';
 
