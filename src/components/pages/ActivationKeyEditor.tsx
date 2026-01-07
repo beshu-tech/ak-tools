@@ -239,7 +239,7 @@ const ActivationKeyEditor = () => {
       });
     } catch (error) {
       console.error('Signing error:', error);
-      showError('Failed to sign JWT');
+      showError('Failed to sign activation key');
     }
   }, [selectedKeyId, editorValue, expiryDate, issuedDate, algorithm, getKeyPairById, showError]);
 
@@ -288,7 +288,7 @@ const ActivationKeyEditor = () => {
     addTemplate({
       name: templateName.trim(),
       description: templateDescription.trim() || undefined,
-      jwt: jwt,
+      activationKey: jwt,
     });
 
     showSuccess('Template saved successfully');
@@ -330,7 +330,7 @@ const ActivationKeyEditor = () => {
                     templates.map((template) => (
                       <button
                         key={template.id}
-                        onClick={() => handleInputChange(template.jwt)}
+                        onClick={() => handleInputChange(template.activationKey)}
                         className="w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors"
                       >
                         <div className="text-sm font-medium">{template.name}</div>

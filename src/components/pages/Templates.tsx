@@ -4,53 +4,61 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Copy, Check, AlertTriangle, AlertCircle } from 'lucide-react';
 import { PageHeader } from '../ui/page-header';
-import { useTemplates, JwtTemplate } from '../../hooks/use-templates';
+import { useTemplates, AkTemplate } from '../../hooks/use-templates';
 import { useToast } from '../../hooks/use-toast';
-import { getJwtMetadata } from '../../utils/activationKey';
+import { getJwtMetadata, validateActivationKeyFormat, AkValidationResult } from '../../utils/activationKey';
 
-const EMPTY_TEMPLATE: Omit<JwtTemplate, 'id' | 'createdAt'> = {
+const EMPTY_TEMPLATE: Omit<AkTemplate, 'id' | 'createdAt'> = {
   name: '',
   description: '',
-  jwt: '',
+  activationKey: '',
 };
+
+interface ValidationState {
+  error: AkValidationResult | null;
+  touched: boolean;
+}
 
 const Templates = () => {
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplates();
   const { success, error: showError, confirm } = useToast();
 
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newTemplate, setNewTemplate] = useState<Omit<JwtTemplate, 'id' | 'createdAt'>>(EMPTY_TEMPLATE);
+  const [newTemplate, setNewTemplate] = useState<Omit<AkTemplate, 'id' | 'createdAt'>>(EMPTY_TEMPLATE);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<JwtTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<AkTemplate | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [newAkValidation, setNewAkValidation] = useState<ValidationState>({ error: null, touched: false });
+  const [editAkValidation, setEditAkValidation] = useState<ValidationState>({ error: null, touched: false });
 
   const resetNewTemplate = () => {
     setNewTemplate(EMPTY_TEMPLATE);
+    setNewAkValidation({ error: null, touched: false });
     setIsAddingNew(false);
   };
 
-  const validateTemplate = (template: Omit<JwtTemplate, 'id' | 'createdAt'>): string | null => {
-    if (!template.name.trim()) {
-      return 'Name is required';
-    }
-    if (!template.jwt.trim()) {
-      return 'JWT is required';
-    }
-    // Validate JWT format
-    const metadata = getJwtMetadata(template.jwt.trim());
-    if (!metadata) {
-      return 'Invalid JWT format';
-    }
-    return null;
+  const validateTemplate = (template: Omit<AkTemplate, 'id' | 'createdAt'>): { nameError: string | null; akValidation: AkValidationResult | null } => {
+    const nameError = !template.name.trim() ? 'Name is required' : null;
+    const akValidation = validateActivationKeyFormat(template.activationKey);
+    return { nameError, akValidation };
   };
 
   const handleSave = () => {
-    const error = validateTemplate(newTemplate);
-    if (error) {
-      showError(error);
+    const { nameError, akValidation } = validateTemplate(newTemplate);
+
+    if (nameError) {
+      showError(nameError);
+      return;
+    }
+
+    if (!akValidation || !akValidation.isValid) {
+      setNewAkValidation({ error: akValidation, touched: true });
+      if (akValidation && !akValidation.isValid) {
+        showError(`${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ''}`);
+      }
       return;
     }
 
@@ -58,7 +66,7 @@ const Templates = () => {
       addTemplate({
         name: newTemplate.name.trim(),
         description: newTemplate.description?.trim(),
-        jwt: newTemplate.jwt.trim(),
+        activationKey: newTemplate.activationKey.trim(),
       });
       success('Template created successfully');
       resetNewTemplate();
@@ -79,45 +87,57 @@ const Templates = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
-  const handleEdit = (template: JwtTemplate) => {
+  const handleEdit = (template: AkTemplate) => {
     if (editingId === template.id) {
       setEditingId(null);
       setEditingTemplate(null);
+      setEditAkValidation({ error: null, touched: false });
     } else {
       setEditingId(template.id);
       setEditingTemplate(template);
+      setEditAkValidation({ error: null, touched: false });
     }
   };
 
   const handleUpdateTemplate = () => {
     if (!editingTemplate) return;
 
-    const error = validateTemplate(editingTemplate);
-    if (error) {
-      showError(error);
+    const { nameError, akValidation } = validateTemplate(editingTemplate);
+
+    if (nameError) {
+      showError(nameError);
+      return;
+    }
+
+    if (!akValidation || !akValidation.isValid) {
+      setEditAkValidation({ error: akValidation, touched: true });
+      if (akValidation && !akValidation.isValid) {
+        showError(`${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ''}`);
+      }
       return;
     }
 
     updateTemplate(editingTemplate.id, {
       name: editingTemplate.name.trim(),
       description: editingTemplate.description?.trim(),
-      jwt: editingTemplate.jwt.trim(),
+      activationKey: editingTemplate.activationKey.trim(),
     });
     success('Template updated');
     setEditingId(null);
     setEditingTemplate(null);
+    setEditAkValidation({ error: null, touched: false });
   };
 
-  const copyToClipboard = async (jwt: string, id: string) => {
-    await navigator.clipboard.writeText(jwt);
+  const copyToClipboard = async (activationKey: string, id: string) => {
+    await navigator.clipboard.writeText(activationKey);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getTemplatePreview = (jwt: string): { text: string; isExpired: boolean } => {
-    const metadata = getJwtMetadata(jwt);
-    if (!metadata) return { text: 'Invalid JWT', isExpired: false };
-    const expired = isJwtExpired(jwt);
+  const getTemplatePreview = (activationKey: string): { text: string; isExpired: boolean } => {
+    const metadata = getJwtMetadata(activationKey);
+    if (!metadata) return { text: 'Invalid activation key', isExpired: false };
+    const expired = isAkExpired(activationKey);
     const expiryText = metadata.expiresAt
       ? `${expired ? 'Expired' : 'Expires'}: ${metadata.expiresAt.toLocaleDateString()}`
       : 'No expiry';
@@ -127,17 +147,33 @@ const Templates = () => {
     };
   };
 
-  // Check if a JWT is expired
-  const isJwtExpired = (jwt: string): boolean => {
-    const metadata = getJwtMetadata(jwt);
+  // Check if an activation key is expired
+  const isAkExpired = (activationKey: string): boolean => {
+    const metadata = getJwtMetadata(activationKey);
     if (!metadata?.expiresAt) return false;
     return metadata.expiresAt < new Date();
+  };
+
+  // Helper to render validation error
+  const renderValidationError = (validation: ValidationState) => {
+    if (!validation.touched || !validation.error || validation.error.isValid) return null;
+    return (
+      <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-md">
+        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+        <div className="text-sm">
+          <p className="font-medium text-destructive">{validation.error.message}</p>
+          {validation.error.details && (
+            <p className="text-destructive/80 mt-1">{validation.error.details}</p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className="p-6">
       <PageHeader
-        title="JWT Templates"
+        title="Activation Key Templates"
         description="Manage your activation key templates for quick access"
       />
 
@@ -189,14 +225,25 @@ const Templates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="jwt">Activation Key (JWT)</Label>
+                <Label htmlFor="activationKey">Activation Key</Label>
                 <Textarea
-                  id="jwt"
-                  value={newTemplate.jwt}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, jwt: e.target.value })}
-                  placeholder="Paste your JWT here"
-                  className="font-mono text-xs min-h-[100px]"
+                  id="activationKey"
+                  value={newTemplate.activationKey}
+                  onChange={(e) => {
+                    setNewTemplate({ ...newTemplate, activationKey: e.target.value });
+                    if (newAkValidation.touched) {
+                      setNewAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
+                    }
+                  }}
+                  onBlur={() => {
+                    if (newTemplate.activationKey.trim()) {
+                      setNewAkValidation({ error: validateActivationKeyFormat(newTemplate.activationKey), touched: true });
+                    }
+                  }}
+                  placeholder="Paste your activation key here"
+                  className={`font-mono text-xs min-h-[100px] ${newAkValidation.touched && newAkValidation.error && !newAkValidation.error.isValid ? 'border-destructive' : ''}`}
                 />
+                {renderValidationError(newAkValidation)}
               </div>
 
               <div className="flex justify-end gap-2">
@@ -234,14 +281,14 @@ const Templates = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-lg font-semibold">{template.name}</CardTitle>
-                        {!getTemplatePreview(template.jwt).isExpired && (
+                        {!getTemplatePreview(template.activationKey).isExpired && (
                           <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded">
                             Not Expired
                           </span>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {template.description || getTemplatePreview(template.jwt).text}
+                        {template.description || getTemplatePreview(template.activationKey).text}
                       </p>
                     </div>
                   </div>
@@ -252,7 +299,7 @@ const Templates = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        copyToClipboard(template.jwt, template.id);
+                        copyToClipboard(template.activationKey, template.id);
                       }}
                     >
                       {copiedId === template.id ? (
@@ -309,13 +356,24 @@ const Templates = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`edit-jwt-${template.id}`}>Activation Key (JWT)</Label>
+                        <Label htmlFor={`edit-activationKey-${template.id}`}>Activation Key</Label>
                         <Textarea
-                          id={`edit-jwt-${template.id}`}
-                          value={editingTemplate?.jwt || ''}
-                          onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, jwt: e.target.value } : null)}
-                          className="font-mono text-xs min-h-[100px]"
+                          id={`edit-activationKey-${template.id}`}
+                          value={editingTemplate?.activationKey || ''}
+                          onChange={(e) => {
+                            setEditingTemplate(prev => prev ? { ...prev, activationKey: e.target.value } : null);
+                            if (editAkValidation.touched) {
+                              setEditAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
+                            }
+                          }}
+                          onBlur={() => {
+                            if (editingTemplate?.activationKey.trim()) {
+                              setEditAkValidation({ error: validateActivationKeyFormat(editingTemplate.activationKey), touched: true });
+                            }
+                          }}
+                          className={`font-mono text-xs min-h-[100px] ${editAkValidation.touched && editAkValidation.error && !editAkValidation.error.isValid ? 'border-destructive' : ''}`}
                         />
+                        {renderValidationError(editAkValidation)}
                       </div>
 
                       <div className="flex justify-end gap-2">
@@ -324,6 +382,7 @@ const Templates = () => {
                           onClick={() => {
                             setEditingId(null);
                             setEditingTemplate(null);
+                            setEditAkValidation({ error: null, touched: false });
                           }}
                         >
                           Cancel
@@ -337,7 +396,7 @@ const Templates = () => {
                     <div className="space-y-2">
                       <Label>Activation Key</Label>
                       <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
-                        {template.jwt}
+                        {template.activationKey}
                       </div>
                     </div>
                   )}

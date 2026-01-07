@@ -1,38 +1,41 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export interface JwtTemplate {
+export interface AkTemplate {
   id: string;
   name: string;
   description?: string;
-  jwt: string;
+  activationKey: string;
   createdAt: string;
 }
 
-const STORAGE_KEY = 'jwtTemplates';
+/** @deprecated Use AkTemplate instead */
+export type JwtTemplate = AkTemplate;
+
+const STORAGE_KEY = 'akTemplates';
 
 // Default example template
-const DEFAULT_TEMPLATES: JwtTemplate[] = [
+const DEFAULT_TEMPLATES: AkTemplate[] = [
   {
     id: 'default-anaphora-free',
     name: 'Anaphora Free Edition',
     description: 'Example activation key for Anaphora Free edition',
-    jwt: 'eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjg4MDYxMjEyODAwLCJpc3MiOiJodHRwczovL2FwaS5iZXNodS50ZWNoIiwiaWF0IjoxNjYxMzU2MTAxLCJqdGkiOiJhbmFwaG9yYV9saWNfMjViMmFhYTgtMTQwMS00YjhmLThkMGYtNmMzMTdmOWJhNjcwIiwiYXVkIjoiQW5hcGhvcmEiLCJzdWIiOiIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMSIsImxpY2Vuc29yIjp7Im5hbWUiOiJBbmFwaG9yYSIsImNvbnRhY3QiOlsic3VwcG9ydEByZWFkb25seXJlc3QuY29tIiwiZmluYW5jZUByZWFkb25seXJlc3QuY29tIl0sImlzc3VlciI6InN1cHBvcnRAcmVhZG9ubHlyZXN0LmNvbSJ9LCJsaWNlbnNlZSI6eyJuYW1lIjoiQW5vbnltb3VzIEZyZWUgVXNlciIsImJ1eWluZ19mb3IiOm51bGwsImJpbGxpbmdfZW1haWwiOiJ1bmtub3duQGFuYXBob3JhLmNvbSIsImFsdF9lbWFpbHMiOltdLCJhZGRyZXNzIjpbIlVua25vd24iXX0sImxpY2Vuc2UiOnsiY2x1c3Rlcl91dWlkIjoiKiIsImVkaXRpb24iOiJmcmVlIiwiZWRpdGlvbl9uYW1lIjoiRnJlZSIsImlzVHJpYWwiOmZhbHNlfX0.ATAB81zkWRxTdpSD_23tcFxba81OCrjdtcGlx_yXwa2VSvJAx7rWQYO2VM2N8zeknA01SzYpPP2o_FXzP3TCEo4iABRof2G1u0iD1AFf5Y0m_TYPs89acR5Fztb46wSBwsj4L1ONal0y8xHYfJC54SKwdXJV4XTJwIP2tBVcTl9QNAfn',
+    activationKey: 'eyJhbGciOiJFUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjg4MDYxMjEyODAwLCJpc3MiOiJodHRwczovL2FwaS5iZXNodS50ZWNoIiwiaWF0IjoxNjYxMzU2MTAxLCJqdGkiOiJhbmFwaG9yYV9saWNfMjViMmFhYTgtMTQwMS00YjhmLThkMGYtNmMzMTdmOWJhNjcwIiwiYXVkIjoiQW5hcGhvcmEiLCJzdWIiOiIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMSIsImxpY2Vuc29yIjp7Im5hbWUiOiJBbmFwaG9yYSIsImNvbnRhY3QiOlsic3VwcG9ydEByZWFkb25seXJlc3QuY29tIiwiZmluYW5jZUByZWFkb25seXJlc3QuY29tIl0sImlzc3VlciI6InN1cHBvcnRAcmVhZG9ubHlyZXN0LmNvbSJ9LCJsaWNlbnNlZSI6eyJuYW1lIjoiQW5vbnltb3VzIEZyZWUgVXNlciIsImJ1eWluZ19mb3IiOm51bGwsImJpbGxpbmdfZW1haWwiOiJ1bmtub3duQGFuYXBob3JhLmNvbSIsImFsdF9lbWFpbHMiOltdLCJhZGRyZXNzIjpbIlVua25vd24iXX0sImxpY2Vuc2UiOnsiY2x1c3Rlcl91dWlkIjoiKiIsImVkaXRpb24iOiJmcmVlIiwiZWRpdGlvbl9uYW1lIjoiRnJlZSIsImlzVHJpYWwiOmZhbHNlfX0.ATAB81zkWRxTdpSD_23tcFxba81OCrjdtcGlx_yXwa2VSvJAx7rWQYO2VM2N8zeknA01SzYpPP2o_FXzP3TCEo4iABRof2G1u0iD1AFf5Y0m_TYPs89acR5Fztb46wSBwsj4L1ONal0y8xHYfJC54SKwdXJV4XTJwIP2tBVcTl9QNAfn',
     createdAt: new Date().toISOString(),
   },
 ];
 
 interface UseTemplatesReturn {
-  templates: JwtTemplate[];
+  templates: AkTemplate[];
   isLoading: boolean;
   error: Error | null;
-  addTemplate: (template: Omit<JwtTemplate, 'id' | 'createdAt'>) => JwtTemplate;
-  updateTemplate: (id: string, updates: Partial<Omit<JwtTemplate, 'id' | 'createdAt'>>) => void;
+  addTemplate: (template: Omit<AkTemplate, 'id' | 'createdAt'>) => AkTemplate;
+  updateTemplate: (id: string, updates: Partial<Omit<AkTemplate, 'id' | 'createdAt'>>) => void;
   deleteTemplate: (id: string) => void;
-  getTemplateById: (id: string) => JwtTemplate | undefined;
+  getTemplateById: (id: string) => AkTemplate | undefined;
 }
 
 export function useTemplates(): UseTemplatesReturn {
-  const [templates, setTemplates] = useState<JwtTemplate[]>([]);
+  const [templates, setTemplates] = useState<AkTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -62,7 +65,7 @@ export function useTemplates(): UseTemplatesReturn {
     }
   }, []);
 
-  const persistTemplates = useCallback((newTemplates: JwtTemplate[]) => {
+  const persistTemplates = useCallback((newTemplates: AkTemplate[]) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newTemplates));
     } catch (e) {
@@ -70,8 +73,8 @@ export function useTemplates(): UseTemplatesReturn {
     }
   }, []);
 
-  const addTemplate = useCallback((template: Omit<JwtTemplate, 'id' | 'createdAt'>): JwtTemplate => {
-    const newTemplate: JwtTemplate = {
+  const addTemplate = useCallback((template: Omit<AkTemplate, 'id' | 'createdAt'>): AkTemplate => {
+    const newTemplate: AkTemplate = {
       ...template,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -86,7 +89,7 @@ export function useTemplates(): UseTemplatesReturn {
     return newTemplate;
   }, [persistTemplates]);
 
-  const updateTemplate = useCallback((id: string, updates: Partial<Omit<JwtTemplate, 'id' | 'createdAt'>>) => {
+  const updateTemplate = useCallback((id: string, updates: Partial<Omit<AkTemplate, 'id' | 'createdAt'>>) => {
     setTemplates(prev => {
       const updated = prev.map(template =>
         template.id === id ? { ...template, ...updates } : template
@@ -104,7 +107,7 @@ export function useTemplates(): UseTemplatesReturn {
     });
   }, [persistTemplates]);
 
-  const getTemplateById = useCallback((id: string): JwtTemplate | undefined => {
+  const getTemplateById = useCallback((id: string): AkTemplate | undefined => {
     return templates.find(template => template.id === id);
   }, [templates]);
 
