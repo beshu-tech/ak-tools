@@ -18,11 +18,18 @@ vi.mock("@monaco-editor/react", () => ({
   default: ({
     value,
     onChange,
+    theme,
   }: {
     value?: string;
     onChange?: (v: string | undefined) => void;
+    theme?: string;
   }) => (
-    <textarea data-testid="monaco" value={value} onChange={(e) => onChange?.(e.target.value)} />
+    <textarea
+      data-testid="monaco"
+      data-theme={theme}
+      value={value}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
   ),
 }));
 
@@ -117,13 +124,24 @@ describe("ActivationKeyEditor — decoding", () => {
     expect(currentToken()).toBe(token);
   });
 
+  it.each([
+    ["light", "light"],
+    ["dark", "vs-dark"],
+  ])("gives the payload editor the %s theme (%s)", async (appTheme, monacoTheme) => {
+    seedKeyPairs([keyPair]);
+    localStorage.setItem("test-theme", appTheme);
+    const { user } = renderEditor();
+    await pasteToken(user, await signToken(keyPair, { sub: "x" }, { exp: FUTURE }));
+    expect(await monaco()).toHaveAttribute("data-theme", monacoTheme);
+  });
+
   it("shows the paste area again after the key is cleared", async () => {
     const token = await signToken(keyPair, { sub: "x" }, { exp: FUTURE });
-    const { user, container } = renderEditor();
+    const { user } = renderEditor();
     await pasteToken(user, token);
     await monaco();
 
-    await user.click(container.querySelector(".ak-clear-button") as HTMLElement);
+    await user.click(screen.getByRole("button", { name: "Clear activation key" }));
     expect(await screen.findByPlaceholderText(/paste your activation key/i)).toHaveValue("");
     expect(screen.queryByTestId("monaco")).not.toBeInTheDocument();
   });

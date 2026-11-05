@@ -1,5 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import "./App.css";
+import { BrowserRouter as Router, Routes, Route, Link, NavLink } from "react-router-dom";
 import { Key, ShieldCheck, FileText, ExternalLink } from "lucide-react";
 import { ThemeProvider } from "./hooks/use-theme";
 import { ToastProvider } from "./hooks/use-toast";
@@ -23,8 +22,8 @@ function App() {
         <Router>
           <div className="min-h-screen page-pattern flex flex-col">
             <nav className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-              <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between h-16">
+              <div className="container mx-auto max-w-6xl px-4">
+                <div className="flex items-center justify-between h-14">
                   <Link to="/" className="flex items-center gap-3 group">
                     <div className="relative">
                       <div className="absolute inset-0 bg-primary/20 rounded-lg blur-md group-hover:bg-primary/30 transition-colors" />
@@ -57,14 +56,15 @@ function App() {
 
                   <div className="flex items-center space-x-1">
                     {menuItems.map((item) => (
-                      <Link
+                      <NavLink
                         key={item.title}
                         to={item.path}
-                        className="nav-link flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                        end={item.path === "/"}
+                        className="flex items-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
                       >
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
+                        <span className="sr-only sm:not-sr-only">{item.title}</span>
+                      </NavLink>
                     ))}
                     <div className="ml-2 pl-2 border-l">
                       <ThemeToggle />
@@ -74,7 +74,7 @@ function App() {
               </div>
             </nav>
 
-            <main className="container mx-auto px-4 py-8 flex-1">
+            <main className="container mx-auto w-full max-w-6xl px-4 py-8 sm:py-10 flex-1">
               <Routes>
                 <Route path="/" element={<ActivationKeyEditor />} />
                 <Route path="/templates" element={<Templates />} />
@@ -83,7 +83,7 @@ function App() {
             </main>
 
             <footer className="border-t bg-card/60 backdrop-blur-sm mt-auto">
-              <div className="container mx-auto px-4 py-6">
+              <div className="container mx-auto max-w-6xl px-4 py-5">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>© {new Date().getFullYear()}</span>

@@ -30,7 +30,7 @@ import { MONACO_OPTIONS } from "./monacoOptions";
 import "./ActivationKeyEditor.css";
 
 const ActivationKeyEditor = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
   const { templates, addTemplate, updateTemplate, getTemplateById } = useTemplates();
   const { error: showError, confirm } = useToast();
@@ -287,29 +287,44 @@ const ActivationKeyEditor = () => {
       />
 
       {!jwt ? (
-        <div className="space-y-3">
-          <Textarea
-            placeholder="Paste your Activation Key here"
-            value={inputValue}
-            onChange={(e) => handleInputChange(e.target.value)}
-            className="ak-input"
-          />
-          <div className="flex items-center gap-2">
-            <TemplatePicker
-              templates={templates}
-              onPick={(template) => {
-                setSourceTemplateId(template.id);
-                handleInputChange(template.activationKey);
-              }}
+        <Card>
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            <Textarea
+              placeholder="Paste your Activation Key here"
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              className="ak-input"
             />
-          </div>
-        </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Decode, edit and re-sign a key, or start from a template.
+              </p>
+              <TemplatePicker
+                templates={templates}
+                onPick={(template) => {
+                  setSourceTemplateId(template.id);
+                  handleInputChange(template.activationKey);
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <Card className="relative">
-          <Button variant="ghost" size="icon" className="ak-clear-button" onClick={clearJwt}>
-            <X className="h-4 w-4" />
-          </Button>
-          <CardContent className="space-y-6 pt-6">
+        <Card>
+          <div className="flex items-center justify-between border-b px-4 py-2 sm:px-6">
+            <span className="text-sm font-medium">Activation key</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground"
+              aria-label="Clear activation key"
+              onClick={clearJwt}
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          </div>
+          <CardContent className="space-y-6 p-4 sm:p-6">
             <div className="ak-content-wrapper">
               <div className="ak-editor-monaco">
                 <Editor
@@ -319,7 +334,7 @@ const ActivationKeyEditor = () => {
                     dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
                   }
                   options={MONACO_OPTIONS}
-                  theme={theme === "dark" ? "vs-dark" : "light"}
+                  theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
                 />
               </div>
 

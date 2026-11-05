@@ -150,10 +150,52 @@ const Keys = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <PageHeader
         title="Keys Management"
         description="Manage your key pairs. All keys should be in PKCS#8 PEM format."
+        actions={
+          <>
+            <input
+              type="file"
+              accept=".zip"
+              onChange={handleImport}
+              className="hidden"
+              id="import-key"
+            />
+            <TooltipProvider>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <label htmlFor="import-key">
+                    <Button variant="outline" asChild>
+                      <span className="cursor-pointer">
+                        <Upload className="h-4 w-4" />
+                        Import
+                      </span>
+                    </Button>
+                  </label>
+                </TooltipTrigger>
+                <TooltipContent className="w-80">
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Import Key Pair</h4>
+                    <div className="text-sm">
+                      <p>Upload a ZIP file containing:</p>
+                      <ul className="list-disc list-inside mt-1">
+                        <li>public_key.pem</li>
+                        <li>private_key.pem</li>
+                      </ul>
+                      <p>The key pair name will be taken from the ZIP filename.</p>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button onClick={startAdding} disabled={isAddingNew}>
+              <Plus className="h-4 w-4" />
+              New key pair
+            </Button>
+          </>
+        }
       />
 
       <div className="mt-2 mb-6 text-left">
@@ -181,45 +223,6 @@ const Keys = () => {
       </div>
 
       <div className="space-y-4">
-        <div className="flex justify-end gap-2">
-          <input
-            type="file"
-            accept=".zip"
-            onChange={handleImport}
-            className="hidden"
-            id="import-key"
-          />
-          <TooltipProvider>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <label htmlFor="import-key">
-                  <Button variant="outline" size="icon" asChild>
-                    <span>
-                      <Upload className="h-4 w-4" />
-                    </span>
-                  </Button>
-                </label>
-              </TooltipTrigger>
-              <TooltipContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Import Key Pair</h4>
-                  <div className="text-sm">
-                    <p>Upload a ZIP file containing:</p>
-                    <ul className="list-disc list-inside mt-1">
-                      <li>public_key.pem</li>
-                      <li>private_key.pem</li>
-                    </ul>
-                    <p>The key pair name will be taken from the ZIP filename.</p>
-                  </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button onClick={startAdding} disabled={isAddingNew} size="icon">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
         {isAddingNew && (
           <Card className="mb-6">
             <CardContent className="pt-6 space-y-6">

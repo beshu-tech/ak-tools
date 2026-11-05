@@ -24,6 +24,10 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-xl: calc(var(--radius) + 4px);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -137,10 +141,22 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings:
       "rlig" 1,
-      "calt" 1;
+      "calt" 1,
+      "cv11" 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
   }
 }
 
@@ -148,64 +164,7 @@
   /* Subtle page background pattern */
   .page-pattern {
     background-image:
-      radial-gradient(circle at 25% 0%, hsl(var(--primary) / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 25% 0%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
       radial-gradient(circle at 75% 100%, hsl(var(--primary) / 0.03) 0%, transparent 50%);
-  }
-
-  /* Card with subtle accent border on hover */
-  .card-interactive {
-    @apply transition-all duration-200;
-  }
-
-  .card-interactive:hover {
-    @apply shadow-md;
-    border-color: hsl(var(--primary) / 0.2);
-  }
-
-  /* Accent line for headers */
-  .accent-line::before {
-    content: "";
-    @apply absolute left-0 top-0 bottom-0 w-1 rounded-full;
-    background: linear-gradient(180deg, hsl(var(--primary)), hsl(var(--primary) / 0.3));
-  }
-
-  /* Nav link with accent underline */
-  .nav-link {
-    @apply relative;
-  }
-
-  .nav-link::after {
-    content: "";
-    @apply absolute bottom-0 left-1/2 w-0 h-0.5 rounded-full transition-all duration-200;
-    background: hsl(var(--primary));
-    transform: translateX(-50%);
-  }
-
-  .nav-link:hover::after,
-  .nav-link.active::after {
-    @apply w-full;
-  }
-
-  /* Status indicator glow */
-  .status-valid {
-    box-shadow: 0 0 0 3px hsl(142 76% 36% / 0.15);
-  }
-
-  .status-invalid {
-    box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.15);
-  }
-
-  /* Subtle gradient text */
-  .text-gradient {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
-  }
-}
-
-@layer utilities {
-  /* Focus ring with brand color */
-  .focus-brand:focus-visible {
-    @apply outline-hidden ring-2 ring-offset-2;
-    --tw-ring-color: hsl(var(--primary));
   }
 }

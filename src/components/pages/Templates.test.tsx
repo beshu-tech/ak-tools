@@ -45,7 +45,7 @@ const iconButton = (scope: HTMLElement | Document, icon: string): HTMLElement =>
   return button as HTMLElement;
 };
 const cardOf = (name: string) =>
-  screen.getByText(name).closest('[class*="rounded-lg"]') as HTMLElement;
+  screen.getByText(name).closest('[data-slot="card"]') as HTMLElement;
 
 const LocationProbe = () => <div data-testid="location">{useLocation().pathname}</div>;
 const renderTemplates = () =>

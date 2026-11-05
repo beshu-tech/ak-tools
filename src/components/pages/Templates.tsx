@@ -4,6 +4,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
+import { PageHeader } from "../ui/page-header";
 import { Label } from "../ui/label";
 import {
   Plus,
@@ -207,18 +208,17 @@ const Templates = () => {
 
   return (
     <TooltipProvider>
-      <div className="p-6 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
-            <p className="text-muted-foreground mt-1">Reusable activation key configurations</p>
-          </div>
-          <Button onClick={startAdding} disabled={isAddingNew} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Template
-          </Button>
-        </div>
+      <div>
+        <PageHeader
+          title="Templates"
+          description="Reusable activation key configurations"
+          actions={
+            <Button onClick={startAdding} disabled={isAddingNew} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New Template
+            </Button>
+          }
+        />
 
         {/* Add New Template Form */}
         {isAddingNew && (

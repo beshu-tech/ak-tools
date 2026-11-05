@@ -8,6 +8,8 @@ export const MONACO_OPTIONS: NonNullable<EditorProps["options"]> = {
   scrollBeyondLastLine: false,
   tabSize: 2,
   fontSize: 12,
+  padding: { top: 12, bottom: 12 },
+  renderLineHighlight: "none",
   lineNumbers: "off",
   folding: false,
   glyphMargin: false,

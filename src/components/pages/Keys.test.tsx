@@ -28,7 +28,7 @@ const iconButton = (scope: HTMLElement | Document, icon: string): HTMLElement =>
   return button;
 };
 const cardOf = (name: string) =>
-  screen.getByText(name).closest('div.rounded-lg, [class*="rounded-lg"]') as HTMLElement;
+  screen.getByText(name).closest('[data-slot="card"]') as HTMLElement;
 
 const fillForm = async (
   user: ReturnType<typeof renderApp>["user"],

@@ -129,12 +129,7 @@ describe("semantic color utilities resolve to the CSS variables", () => {
 
 describe("custom component classes survive", () => {
   // Only classes used in components: Tailwind 3 purges unused `@layer components` rules.
-  it.each(["page-pattern", "nav-link"])(".%s", (name) => expect(hasSelector(name)).toBe(true));
-
-  it("nav-link keeps its animated underline", () => {
-    expect(css).toMatch(/\.nav-link:?:after/);
-    expect(css).toMatch(/\.nav-link:hover:?:after/);
-  });
+  it.each(["page-pattern"])(".%s", (name) => expect(hasSelector(name)).toBe(true));
 
   it("page-pattern keeps its radial gradients", () => {
     expect(ruleBody("page-pattern")).toContain("radial-gradient");

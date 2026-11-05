@@ -1,11 +1,11 @@
 @reference "../../index.css";
 
 .ak-editor-container {
-  @apply p-6 max-w-7xl mx-auto;
+  @apply w-full;
 }
 
 .ak-input {
-  @apply font-mono min-h-[200px] w-full;
+  @apply font-mono text-[13px] leading-relaxed min-h-[220px] w-full resize-y;
 }
 
 .ak-example-link {
@@ -23,12 +23,12 @@
 }
 
 .ak-editor-monaco {
-  @apply h-[400px] border rounded-md;
+  @apply h-[400px] border rounded-lg overflow-hidden;
 }
 
 @media (min-width: 768px) {
   .ak-editor-monaco {
-    @apply h-[calc(100vh-12rem)];
+    @apply h-[calc(100vh-16rem)] min-h-[420px];
   }
 }
 
@@ -71,15 +71,11 @@
 }
 
 .ak-output-text {
-  @apply p-3 pr-12 bg-muted border rounded-md font-mono text-sm break-all;
+  @apply p-3 pr-12 bg-muted border rounded-lg font-mono text-xs leading-relaxed break-all max-h-48 overflow-y-auto;
 }
 
 .ak-copy-button {
   @apply absolute top-2 right-2 h-8 w-8;
-}
-
-.ak-clear-button {
-  @apply absolute -top-1 -right-1 z-10;
 }
 
 .ak-right-column {
