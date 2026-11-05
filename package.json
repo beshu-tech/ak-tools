@@ -4,14 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=26.0.0",
+    "npm": ">=12.0.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "node node_modules/typescript-native/bin/tsc && vite build",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/typescript-native/bin/tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -45,7 +46,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.2.1",
@@ -58,11 +59,13 @@
     "tailwindcss": "^4.3.4",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
+    "typescript-native": "npm:typescript@~7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
   },
   "overrides": {
     "dompurify": "^3.4.17",
     "minimatch": "^11.0.1"
-  }
+  },
+  "packageManager": "npm@12.2.2"
 }
