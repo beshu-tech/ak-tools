@@ -1,19 +1,27 @@
 .key-display {
   font-family: monospace;
   white-space: pre-wrap;
-  overflow-x: auto;
+  overflow-wrap: anywhere;
   background-color: hsl(var(--muted));
   padding: 1rem;
   border-radius: 0.5rem;
 }
 
+/* Blurred until the user presses Show; focus inside the field (for example on the Show button) also reads it. */
 .key-display.blurred {
   filter: blur(3px);
+  user-select: none;
   transition: filter 0.2s ease-in-out;
 }
 
-.key-display.blurred:hover {
-  filter: blur(0);
+.key-field:focus-within .key-display.blurred {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key-display.blurred {
+    transition: none;
+  }
 }
 
 .key-label {
@@ -21,4 +29,4 @@
   color: hsl(var(--muted-foreground));
   margin-bottom: 0.25rem;
   display: block;
-} 
+}

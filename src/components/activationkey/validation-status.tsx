@@ -1,12 +1,7 @@
-import React from 'react';
-import { Check, X } from 'lucide-react';
-import { ValidationResult } from '../../types/activationKey';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
+import React from "react";
+import { Check, X } from "lucide-react";
+import { ValidationResult } from "../../types/activationKey";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 interface ValidationStatusProps {
   validation: ValidationResult | null;
@@ -29,12 +24,12 @@ export const ValidationStatus: React.FC<ValidationStatusProps> = ({ validation }
         </TooltipTrigger>
         <TooltipContent>
           <p>
-            {validation.isValid 
-              ? "Signature is valid" 
+            {validation.isValid
+              ? "Signature is valid"
               : validation.error || "Cannot validate signature"}
           </p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
-}; 
+};

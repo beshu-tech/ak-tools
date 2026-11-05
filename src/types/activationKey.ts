@@ -1,6 +1,6 @@
 export type Algorithm = string;
 
-export const SUPPORTED_ALGORITHMS = ['ES512'];
+export const SUPPORTED_ALGORITHMS = ["ES512"];
 
 /**
  * Metadata for activation key JWT tokens
@@ -23,10 +23,15 @@ export interface KeyPair {
 }
 
 /**
- * Result of activation key validation
+ * Result of verifying an activation key's signature against a key pair.
  */
 export interface ValidationResult {
   isValid: boolean;
   error: string | null;
-  metadata?: ActivationKeyMetadata;
-} 
+  keyName?: string;
+  errors?: {
+    expired?: boolean;
+    signature?: boolean;
+    message?: string;
+  };
+}

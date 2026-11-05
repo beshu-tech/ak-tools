@@ -1,11 +1,11 @@
-import { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import { useState, useCallback, Dispatch, SetStateAction } from "react";
 
 /**
  * State and handlers for CRUD form operations.
  * Manages the pattern of adding new items and editing existing items
  * that's common across list-based UI components.
  */
-export interface UseCrudStateReturn<T extends { id: string }, TNew = Omit<T, 'id' | 'createdAt'>> {
+export interface UseCrudStateReturn<T extends { id: string }, TNew = Omit<T, "id" | "createdAt">> {
   // Adding new item state
   isAddingNew: boolean;
   newItem: TNew;
@@ -49,8 +49,8 @@ export interface UseCrudStateOptions<TNew> {
  * });
  * ```
  */
-export function useCrudState<T extends { id: string }, TNew = Omit<T, 'id' | 'createdAt'>>(
-  options: UseCrudStateOptions<TNew>
+export function useCrudState<T extends { id: string }, TNew = Omit<T, "id" | "createdAt">>(
+  options: UseCrudStateOptions<TNew>,
 ): UseCrudStateReturn<T, TNew> {
   const { emptyItem } = options;
 
@@ -91,15 +91,18 @@ export function useCrudState<T extends { id: string }, TNew = Omit<T, 'id' | 'cr
     setEditingItem(null);
   }, []);
 
-  const toggleEdit = useCallback((item: T) => {
-    if (editingId === item.id) {
-      setEditingId(null);
-      setEditingItem(null);
-    } else {
-      setEditingId(item.id);
-      setEditingItem(item);
-    }
-  }, [editingId]);
+  const toggleEdit = useCallback(
+    (item: T) => {
+      if (editingId === item.id) {
+        setEditingId(null);
+        setEditingItem(null);
+      } else {
+        setEditingId(item.id);
+        setEditingItem(item);
+      }
+    },
+    [editingId],
+  );
 
   return {
     isAddingNew,

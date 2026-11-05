@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 
 /**
  * Base interface for items stored in localStorage collections.
@@ -22,8 +22,8 @@ export interface UseLocalStorageCollectionReturn<T extends StorableItem> {
   items: T[];
   isLoading: boolean;
   error: Error | null;
-  add: (item: Omit<T, 'id' | 'createdAt'>) => T;
-  update: (id: string, updates: Partial<Omit<T, 'id' | 'createdAt'>>) => void;
+  add: (item: Omit<T, "id" | "createdAt">) => T;
+  update: (id: string, updates: Partial<Omit<T, "id" | "createdAt">>) => void;
   remove: (id: string) => void;
   getById: (id: string) => T | undefined;
 }
@@ -46,7 +46,7 @@ export interface UseLocalStorageCollectionReturn<T extends StorableItem> {
  * ```
  */
 export function useLocalStorageCollection<T extends StorableItem>(
-  options: UseLocalStorageCollectionOptions<T>
+  options: UseLocalStorageCollectionOptions<T>,
 ): UseLocalStorageCollectionReturn<T> {
   const { storageKey, entityName, defaultItems = [] } = options;
 
@@ -84,51 +84,64 @@ export function useLocalStorageCollection<T extends StorableItem>(
     }
   }, [storageKey, entityName]);
 
-  const persist = useCallback((newItems: T[]) => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(newItems));
-    } catch (e) {
-      setError(e instanceof Error ? e : new Error(`Failed to save ${entityName} to storage`));
-    }
-  }, [storageKey, entityName]);
+  const persist = useCallback(
+    (newItems: T[]) => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(newItems));
+      } catch (e) {
+        setError(e instanceof Error ? e : new Error(`Failed to save ${entityName} to storage`));
+      }
+    },
+    [storageKey, entityName],
+  );
 
-  const add = useCallback((item: Omit<T, 'id' | 'createdAt'>): T => {
-    const newItem = {
-      ...item,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-    } as T;
+  const add = useCallback(
+    (item: Omit<T, "id" | "createdAt">): T => {
+      const newItem = {
+        ...item,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      } as T;
 
-    setItems(prev => {
-      const updated = [...prev, newItem];
-      persist(updated);
-      return updated;
-    });
+      setItems((prev) => {
+        const updated = [...prev, newItem];
+        persist(updated);
+        return updated;
+      });
 
-    return newItem;
-  }, [persist]);
+      return newItem;
+    },
+    [persist],
+  );
 
-  const update = useCallback((id: string, updates: Partial<Omit<T, 'id' | 'createdAt'>>) => {
-    setItems(prev => {
-      const updated = prev.map(item =>
-        item.id === id ? { ...item, ...updates } : item
-      );
-      persist(updated);
-      return updated;
-    });
-  }, [persist]);
+  const update = useCallback(
+    (id: string, updates: Partial<Omit<T, "id" | "createdAt">>) => {
+      setItems((prev) => {
+        const updated = prev.map((item) => (item.id === id ? { ...item, ...updates } : item));
+        persist(updated);
+        return updated;
+      });
+    },
+    [persist],
+  );
 
-  const remove = useCallback((id: string) => {
-    setItems(prev => {
-      const updated = prev.filter(item => item.id !== id);
-      persist(updated);
-      return updated;
-    });
-  }, [persist]);
+  const remove = useCallback(
+    (id: string) => {
+      setItems((prev) => {
+        const updated = prev.filter((item) => item.id !== id);
+        persist(updated);
+        return updated;
+      });
+    },
+    [persist],
+  );
 
-  const getById = useCallback((id: string): T | undefined => {
-    return items.find(item => item.id === id);
-  }, [items]);
+  const getById = useCallback(
+    (id: string): T | undefined => {
+      return items.find((item) => item.id === id);
+    },
+    [items],
+  );
 
   return {
     items,
