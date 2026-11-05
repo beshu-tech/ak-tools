@@ -100,11 +100,11 @@ describe("theme tokens", () => {
   });
 
   it("defines the dark palette under the .dark class", () => {
-    expect(css).toMatch(/\.dark\s*\{[^}]*--background:\s*224 71% 4%/);
+    expect(css).toMatch(/\.dark\s*\{[^}]*--background:\s*197 100% 8.4%/);
   });
 
   it("keeps the light palette on :root", () => {
-    expect(css).toMatch(/:root\s*\{[^}]*--background:\s*210 20% 98%/);
+    expect(css).toMatch(/:root\s*\{[^}]*--background:\s*195 33% 96%/);
   });
 });
 

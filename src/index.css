@@ -24,13 +24,19 @@
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
 
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Beshu brand: the same in both themes (used for the gradient CTA and logo). */
+  --color-brand-cyan: #00d4ff;
+  --color-brand-green: #00ff9d;
+  --color-brand-ink: #001e2b;
 
-  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Oxygen", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Ubuntu", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-xl: calc(var(--radius) + 2px);
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -61,72 +67,84 @@
   }
 }
 
+/* White to cyan to green, as in the Beshu hero headline. */
+@utility text-brand-gradient {
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--foreground)) 0%,
+    hsl(var(--primary)) 55%,
+    hsl(var(--brand-end)) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 195 33% 96%;
+    --foreground: 197 100% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 197 100% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 197 100% 8%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 193 100% 28%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 195 25% 92%;
+    --secondary-foreground: 197 100% 8%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 195 25% 93%;
+    --muted-foreground: 197 25% 35%;
 
-    --accent: 221 83% 96%;
-    --accent-foreground: 221 83% 40%;
+    --accent: 190 60% 90%;
+    --accent-foreground: 193 100% 22%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --border: 195 25% 85%;
+    --input: 195 25% 85%;
+    --ring: 193 100% 35%;
 
-    --radius: 0.5rem;
+    --brand-end: 163 100% 28%;
 
-    /* Custom accent for subtle highlights */
-    --highlight: 221 83% 53%;
+    --radius: 0.25rem;
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    --background: 197 100% 8.4%;
+    --foreground: 0 0% 100%;
 
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
+    --card: 197 61% 13%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 224 71% 6%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 197 80% 10%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 191 100% 50%;
+    --primary-foreground: 197 100% 8.4%;
 
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 213 31% 91%;
+    --secondary: 197 45% 17%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --muted: 197 55% 12%;
+    --muted-foreground: 195 18% 72%;
 
-    --accent: 216 50% 16%;
-    --accent-foreground: 217 91% 70%;
+    --accent: 191 70% 17%;
+    --accent-foreground: 191 100% 72%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 217 91% 60%;
+    --border: 200 42% 19%;
+    --input: 200 42% 19%;
+    --ring: 191 100% 50%;
 
-    --highlight: 217 91% 60%;
+    --brand-end: 157 100% 50%;
   }
 }
 
@@ -144,27 +162,26 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings:
       "rlig" 1,
-      "calt" 1,
-      "cv11" 1;
+      "calt" 1;
   }
 
   h1,
   h2,
   h3 {
-    @apply tracking-tight;
+    @apply font-heading tracking-tight;
     text-wrap: balance;
   }
 
   ::selection {
-    background: hsl(var(--primary) / 0.2);
+    background: hsl(var(--primary) / 0.25);
   }
 }
 
 @layer components {
-  /* Subtle page background pattern */
+  /* Soft cyan and green glow behind the page, like the Beshu hero. */
   .page-pattern {
     background-image:
-      radial-gradient(circle at 25% 0%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
-      radial-gradient(circle at 75% 100%, hsl(var(--primary) / 0.03) 0%, transparent 50%);
+      radial-gradient(circle at 15% 0%, hsl(var(--primary) / 0.1) 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, hsl(var(--brand-end) / 0.07) 0%, transparent 45%);
   }
 }

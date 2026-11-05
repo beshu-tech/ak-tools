@@ -26,7 +26,12 @@ import { useTemplates } from "../../hooks/use-templates";
 import { useToast } from "../../hooks/use-toast";
 import { PENDING_TEMPLATE_KEY } from "./Templates";
 import { editorReducer, initialState } from "./editorReducer";
-import { MONACO_OPTIONS } from "./monacoOptions";
+import {
+  MONACO_DARK_THEME,
+  MONACO_LIGHT_THEME,
+  MONACO_OPTIONS,
+  defineMonacoThemes,
+} from "./monacoOptions";
 import "./ActivationKeyEditor.css";
 
 const ActivationKeyEditor = () => {
@@ -296,7 +301,7 @@ const ActivationKeyEditor = () => {
               className="ak-input"
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
+              <p className="border-l-2 border-primary/70 pl-3 text-sm text-muted-foreground">
                 Decode, edit and re-sign a key, or start from a template.
               </p>
               <TemplatePicker
@@ -334,7 +339,8 @@ const ActivationKeyEditor = () => {
                     dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
                   }
                   options={MONACO_OPTIONS}
-                  theme={resolvedTheme === "dark" ? "vs-dark" : "light"}
+                  beforeMount={defineMonacoThemes}
+                  theme={resolvedTheme === "dark" ? MONACO_DARK_THEME : MONACO_LIGHT_THEME}
                 />
               </div>
 

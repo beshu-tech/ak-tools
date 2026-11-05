@@ -18,11 +18,11 @@ function App() {
   ];
 
   return (
-    <ThemeProvider defaultTheme="system" storageKey="ak-tools-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="ak-tools-theme">
       <ToastProvider>
         <Router>
           <div className="min-h-screen page-pattern flex flex-col">
-            <nav className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+            <nav className="border-b bg-background/70 backdrop-blur-md sticky top-0 z-50">
               <div className="container mx-auto max-w-6xl px-4">
                 <div className="flex items-center justify-between h-14">
                   <Link
@@ -39,7 +39,7 @@ function App() {
                         key={item.title}
                         to={item.path}
                         end={item.path === "/"}
-                        className="flex items-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
+                        className="relative flex items-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-md text-[13px] font-normal uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors aria-[current=page]:text-primary aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-3 aria-[current=page]:after:-bottom-[11px] aria-[current=page]:after:h-0.5 aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-linear-to-r aria-[current=page]:after:from-brand-cyan aria-[current=page]:after:to-brand-green aria-[current=page]:after:content-['']"
                       >
                         <item.icon className="h-4 w-4" />
                         <span className="sr-only sm:not-sr-only">{item.title}</span>
@@ -61,7 +61,7 @@ function App() {
               </Routes>
             </main>
 
-            <footer className="border-t bg-card/60 backdrop-blur-sm mt-auto">
+            <footer className="border-t bg-black/10 dark:bg-black/20 mt-auto">
               <div className="container mx-auto max-w-6xl px-4 py-5">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

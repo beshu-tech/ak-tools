@@ -126,7 +126,7 @@ describe("ActivationKeyEditor — decoding", () => {
 
   it.each([
     ["light", "light"],
-    ["dark", "vs-dark"],
+    ["dark", "ak-dark"],
   ])("gives the payload editor the %s theme (%s)", async (appTheme, monacoTheme) => {
     seedKeyPairs([keyPair]);
     localStorage.setItem("test-theme", appTheme);

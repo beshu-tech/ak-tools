@@ -1,4 +1,4 @@
-import type { EditorProps } from "@monaco-editor/react";
+import type { BeforeMount, EditorProps } from "@monaco-editor/react";
 
 export const MONACO_OPTIONS: NonNullable<EditorProps["options"]> = {
   minimap: { enabled: false },
@@ -25,4 +25,21 @@ export const MONACO_OPTIONS: NonNullable<EditorProps["options"]> = {
     horizontalScrollbarSize: 10,
     alwaysConsumeMouseWheel: false,
   },
+};
+
+export const MONACO_DARK_THEME = "ak-dark";
+export const MONACO_LIGHT_THEME = "light";
+
+/** Dark editor theme on the card colour of the app's dark theme. */
+export const defineMonacoThemes: BeforeMount = (monaco) => {
+  monaco.editor.defineTheme(MONACO_DARK_THEME, {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#0d2936",
+      "editor.lineHighlightBackground": "#0d2936",
+      "editorGutter.background": "#0d2936",
+    },
+  });
 };
