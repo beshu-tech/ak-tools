@@ -9,9 +9,6 @@ export interface AkTemplate {
   createdAt: string;
 }
 
-/** @deprecated Use AkTemplate instead */
-export type JwtTemplate = AkTemplate;
-
 const STORAGE_KEY = "akTemplates";
 
 // Default example template

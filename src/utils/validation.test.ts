@@ -8,7 +8,6 @@ import {
   validatePrivateKeyFormat,
   validatePublicKeyFormat,
 } from "./validation";
-import { validatePrivateKey, validatePublicKey } from "./key-validation";
 
 const PRIV = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----";
 const PUB = "-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----";
@@ -70,17 +69,5 @@ describe("validateKeyPair", () => {
     expect(getFirstError(validateKeyPair({ name: "ok", publicKey: PUB }))).toBe(
       "Private key is required",
     );
-  });
-});
-
-describe("key-validation (legacy helpers)", () => {
-  it("validatePrivateKey flags only SEC1", () => {
-    expect(validatePrivateKey(SEC1_PRIVATE_KEY)).toContain("SEC1");
-    expect(validatePrivateKey(PRIV)).toBeNull();
-    expect(validatePrivateKey("anything")).toBeNull();
-  });
-  it("validatePublicKey requires the SPKI header", () => {
-    expect(validatePublicKey(PUB)).toBeNull();
-    expect(validatePublicKey("nope")).toMatch(/Invalid public key format/);
   });
 });

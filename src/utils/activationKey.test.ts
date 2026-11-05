@@ -5,7 +5,6 @@ import { fakeToken, makeKeyPair, SEC1_PRIVATE_KEY, signToken } from "../test/fix
 import {
   decodeJWT,
   extractPublicKeyFromPrivate,
-  formatJwtDisplay,
   formatRelativeTime,
   generateEC512KeyPair,
   getJwtMetadata,
@@ -165,16 +164,6 @@ describe("formatRelativeTime", () => {
     vi.useFakeTimers({ now: new Date("2026-06-15T12:00:00Z") });
     expect(formatRelativeTime(new Date("2026-06-12T12:00:00Z"), true)).toBe("Expired 3 days ago");
     expect(formatRelativeTime(new Date("2026-06-18T12:00:00Z"), true)).toBe("in 3 days");
-  });
-});
-
-describe("formatJwtDisplay", () => {
-  it("keeps short tokens intact", () => {
-    expect(formatJwtDisplay("short")).toBe("short");
-    expect(formatJwtDisplay("x".repeat(20))).toBe("x".repeat(20));
-  });
-  it("elides long tokens to first/last 10 chars", () => {
-    expect(formatJwtDisplay("0123456789-middle-ABCDEFGHIJ")).toBe("0123456789...ABCDEFGHIJ");
   });
 });
 

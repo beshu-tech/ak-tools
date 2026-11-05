@@ -4,13 +4,6 @@ import { ActivationKeyMetadata, KeyPair, Algorithm } from "../types/activationKe
 import { SignJWT } from "jose";
 import { generateKeyPair } from "jose";
 
-// Polyfill Buffer for browser environments
-import { Buffer } from "buffer";
-const globalAny = typeof window !== "undefined" ? window : global;
-if (!globalAny.Buffer) {
-  globalAny.Buffer = Buffer;
-}
-
 export const getJwtMetadata = (token: string): ActivationKeyMetadata | null => {
   try {
     const decoded = jose.decodeJwt(token);
@@ -166,11 +159,6 @@ export const formatRelativeTime = (date: Date | null, isExpiry = false): string 
   }
 
   return `${formatDistanceToNow(date, { addSuffix: true })}`;
-};
-
-export const formatJwtDisplay = (token: string): string => {
-  if (token.length <= 20) return token;
-  return `${token.slice(0, 10)}...${token.slice(-10)}`;
 };
 
 export const decodeJWT = async (token: string): Promise<string> => {
