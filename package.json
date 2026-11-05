@@ -30,6 +30,7 @@
     "jose": "^6.2.15",
     "jszip": "^3.10.2",
     "lucide-react": "^1.69.0",
+    "monaco-editor": "0.57.0",
     "react": "^19.3.1",
     "react-day-picker": "^10.0.2",
     "react-dom": "^19.3.1",

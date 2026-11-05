@@ -3,6 +3,7 @@ import { Card, CardContent } from "../ui/card";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import Editor from "@monaco-editor/react";
+import "@/lib/monaco-local";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 import { X, Check, Pencil, AlertTriangle, Copy, FileText, Key } from "lucide-react";
@@ -292,15 +293,23 @@ const ActivationKeyEditor = () => {
       />
 
       {!jwt && (
-        <p className="-mt-4 mb-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          An Activation Key is a signed token (a JWT, signed with ES512) that unlocks a product
-          edition, such as ReadonlyREST or Anaphora. It states who the licence is for, which edition
-          it grants, which cluster it covers, and when it was issued and when it expires. The
-          product checks the signature with the matching public key, so it can verify a key offline,
-          with no licence server. Any change to the contents breaks the signature, so a key cannot
-          be edited without the private key. Use this tool to decode a key, change its claims, and
-          sign it again with a private key you hold.
-        </p>
+        <div className="-mt-4 mb-8 max-w-3xl space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            An Activation Key is a signed token (a JWT, signed with ES512) that licenses a Beshu
+            product, ReadonlyREST or Anaphora, in one edition: Free, Pro or Enterprise. It states
+            who the licence is for, the edition, the cluster it covers, and when it was issued and
+            when it expires. The product checks the signature with the matching public key, so it
+            can verify a key offline, with no licence server. Any change to the contents breaks the
+            signature.
+          </p>
+          <p>
+            <strong className="font-medium text-foreground">Licensors</strong> use this tool to
+            create keys and sign them with their private key.{" "}
+            <strong className="font-medium text-foreground">Licensees</strong> use it to decode a
+            key and read what it contains. Everything runs in your browser. Your keys and templates
+            stay on this device, and the page sends nothing to a server.
+          </p>
+        </div>
       )}
 
       {!jwt ? (

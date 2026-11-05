@@ -240,3 +240,24 @@ describe("every class used in components has a CSS rule", () => {
     expect(missing, `classes with no CSS rule:\n${missing.join("\n")}`).toEqual([]);
   });
 });
+
+describe("stays in the browser", () => {
+  it("loads no code, font or style from a third-party host", () => {
+    // @monaco-editor/loader keeps a default CDN path that loader.config({ monaco }) overrides:
+    // it is never fetched (checked in Chrome), and the CSP below blocks it anyway.
+    const withoutLoaderDefault = js.replace(
+      /https:\/\/cdn\.jsdelivr\.net\/npm\/monaco-editor@[\d.]+\/min\/vs/g,
+      "",
+    );
+    expect(withoutLoaderDefault).not.toMatch(
+      /cdn\.jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com/,
+    );
+    expect(html).not.toMatch(/(?:src|href)=["']https?:/);
+  });
+
+  it("ships a CSP that blocks outgoing connections", () => {
+    const headers = readFileSync(path.join(outDir, "_headers"), "utf8");
+    expect(headers).toContain("connect-src 'self'");
+    expect(headers).toContain("script-src 'self'");
+  });
+});
