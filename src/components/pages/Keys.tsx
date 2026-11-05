@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import {
@@ -12,11 +12,17 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-import { Label } from "../ui/label";
 import { PageHeader } from "../ui/page-header";
 import { KeyPair } from "../../types/activationKey";
 import { KeyPairForm } from "../keys/key-pair-form";
-import { validateKeyPair, hasValidationErrors, getFirstError } from "../../utils/validation";
+import { clearChangedErrors } from "../keys/key-pair-errors";
+import { KeyDisplay } from "../keys/key-display";
+import {
+  validateKeyPair,
+  hasValidationErrors,
+  getFirstError,
+  type KeyPairValidationErrors,
+} from "../../utils/validation";
 import { generateEC512KeyPair } from "../../utils/activationKey";
 import { exportKeyPairToZip, importKeyPairFromZip } from "../../utils/file-utils";
 import { useKeyPairs } from "../../hooks/use-key-pairs";
@@ -53,6 +59,42 @@ const Keys = () => {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showSec1Info, setShowSec1Info] = useState(false);
+  const [createErrors, setCreateErrors] = useState<KeyPairValidationErrors>({});
+  const [editErrors, setEditErrors] = useState<KeyPairValidationErrors>({});
+  const [createFailedSubmits, setCreateFailedSubmits] = useState(0);
+  const [editFailedSubmits, setEditFailedSubmits] = useState(0);
+
+  // Focus targets. A handler asks for a focus move; it runs after the next render,
+  // when the target exists (or is enabled again).
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const newButtonRef = useRef<HTMLButtonElement>(null);
+  const addFormRef = useRef<HTMLDivElement>(null);
+  const toggleRefs = useRef(new Map<string, HTMLButtonElement>());
+  const editRefs = useRef(new Map<string, HTMLButtonElement>());
+  const focusRequest = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const run = focusRequest.current;
+    focusRequest.current = null;
+    run?.();
+  });
+  const trackRef =
+    (refs: React.RefObject<Map<string, HTMLButtonElement>>, id: string) =>
+    (el: HTMLButtonElement | null) => {
+      if (el) refs.current.set(id, el);
+      else refs.current.delete(id);
+    };
+  const focusNewButton = () => newButtonRef.current?.focus();
+
+  const closeCreateForm = () => {
+    resetNewKeyPair();
+    setCreateErrors({});
+    focusRequest.current = focusNewButton;
+  };
+  const closeEditForm = (id: string) => {
+    cancelEditing();
+    setEditErrors({});
+    focusRequest.current = () => editRefs.current.get(id)?.focus();
+  };
 
   const handleSave = async () => {
     const trimmedKeyPair = {
@@ -63,6 +105,8 @@ const Keys = () => {
 
     const errors = validateKeyPair(trimmedKeyPair);
     if (hasValidationErrors(errors)) {
+      setCreateErrors(errors);
+      setCreateFailedSubmits((n) => n + 1);
       showError(getFirstError(errors) ?? "Validation failed");
       return;
     }
@@ -70,13 +114,28 @@ const Keys = () => {
     try {
       addKeyPair(trimmedKeyPair);
       success("Key pair created successfully");
-      resetNewKeyPair();
+      closeCreateForm();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Error saving key pair");
     }
   };
 
-  const handleDelete = useConfirmedDelete(deleteKeyPair, {
+  // Runs only after the user confirms: move focus to the next card, else the previous, else the page controls.
+  const removeKeyPair = (id: string) => {
+    const index = keyPairs.findIndex((pair) => pair.id === id);
+    const neighbor = keyPairs[index + 1] ?? keyPairs[index - 1];
+    focusRequest.current = () => {
+      const target = neighbor && toggleRefs.current.get(neighbor.id);
+      if (target) target.focus();
+      else if (newButtonRef.current && !newButtonRef.current.disabled) newButtonRef.current.focus();
+      else addFormRef.current?.querySelector<HTMLElement>("input, textarea")?.focus();
+    };
+    if (expandedId === id) setExpandedId(null);
+    if (editingId === id) cancelEditing();
+    deleteKeyPair(id);
+  };
+
+  const handleDelete = useConfirmedDelete(removeKeyPair, {
     confirmMessage: "Are you sure you want to delete this key pair?",
     successMessage: "Key pair deleted",
   });
@@ -96,13 +155,15 @@ const Keys = () => {
 
     const errors = validateKeyPair(trimmedKeyPair);
     if (hasValidationErrors(errors)) {
+      setEditErrors(errors);
+      setEditFailedSubmits((n) => n + 1);
       showError(getFirstError(errors) ?? "Validation failed");
       return;
     }
 
     updateKeyPair(editingKeyPair.id, trimmedKeyPair);
     success("Key pair updated");
-    cancelEditing();
+    closeEditForm(editingKeyPair.id);
   };
 
   const handleGenerateKeys = async () => {
@@ -157,27 +218,30 @@ const Keys = () => {
         actions={
           <>
             <input
+              ref={importInputRef}
               type="file"
               accept=".zip"
               onChange={handleImport}
               className="hidden"
               id="import-key"
+              tabIndex={-1}
             />
             <TooltipProvider>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <label htmlFor="import-key">
-                    <Button variant="outline" asChild>
-                      <span className="cursor-pointer">
-                        <Upload className="h-4 w-4" />
-                        Import
-                      </span>
-                    </Button>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    aria-label="Import key pair from ZIP"
+                    onClick={() => importInputRef.current?.click()}
+                  >
+                    <Upload className="h-4 w-4" aria-hidden="true" />
+                    Import
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent className="w-80">
                   <div className="space-y-2">
-                    <h4 className="font-medium">Import Key Pair</h4>
+                    <p className="font-medium">Import Key Pair</p>
                     <div className="text-sm">
                       <p>Upload a ZIP file containing:</p>
                       <ul className="list-disc list-inside mt-1">
@@ -190,8 +254,8 @@ const Keys = () => {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button onClick={startAdding} disabled={isAddingNew}>
-              <Plus className="h-4 w-4" />
+            <Button ref={newButtonRef} onClick={startAdding} disabled={isAddingNew}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
               New key pair
             </Button>
           </>
@@ -200,17 +264,21 @@ const Keys = () => {
 
       <div className="mt-2 mb-6 text-left">
         <button
+          type="button"
           onClick={() => setShowSec1Info((prev) => !prev)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          aria-expanded={showSec1Info}
+          aria-controls="sec1-info"
+          className="flex min-h-8 items-center gap-2 rounded-md text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
         >
           <ChevronRight
+            aria-hidden="true"
             className={`h-4 w-4 transition-transform ${showSec1Info ? "rotate-90" : ""}`}
           />
-          <p className="font-medium">Converting SEC1 PEM to PKCS#8</p>
+          <span className="font-medium">Converting SEC1 PEM to PKCS#8</span>
         </button>
 
         {showSec1Info && (
-          <div className="mt-2 p-4 bg-secondary/10 rounded-lg text-sm">
+          <div id="sec1-info" className="mt-2 p-4 bg-secondary/10 rounded-lg text-sm">
             <p className="mb-2">
               If you have a SEC1 PEM key (starting with "BEGIN EC PRIVATE KEY"), you can convert it
               to PKCS#8 format using this command:
@@ -225,127 +293,149 @@ const Keys = () => {
       <div className="space-y-4">
         {isAddingNew && (
           <Card className="mb-6">
-            <CardContent className="pt-6 space-y-6">
+            <CardContent ref={addFormRef} className="pt-6 space-y-6">
               <KeyPairForm
                 mode="create"
                 keyPair={newKeyPair}
-                onChange={(e) => setNewKeyPair(e as KeyPair)}
+                errors={createErrors}
+                failedSubmits={createFailedSubmits}
+                onChange={(e) => {
+                  setCreateErrors((prev) => clearChangedErrors(prev, newKeyPair, e));
+                  setNewKeyPair(e as KeyPair);
+                }}
                 onSave={handleSave}
-                onCancel={resetNewKeyPair}
+                onCancel={closeCreateForm}
                 onGenerateKeys={handleGenerateKeys}
               />
             </CardContent>
           </Card>
         )}
 
-        <div className="space-y-4">
-          {keyPairs.map((pair) => (
-            <Card key={pair.id}>
-              <CardHeader
-                className="relative cursor-pointer hover:bg-secondary/10 transition-colors px-6 py-4"
-                onClick={() => toggleExpand(pair.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="pointer-events-none p-0 hover:bg-transparent"
-                    >
-                      {expandedId === pair.id ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
-                    </Button>
-                    <CardTitle className="text-xl font-semibold">{pair.name}</CardTitle>
-                  </div>
+        {keyPairs.length > 0 && (
+          <TooltipProvider>
+            <ul aria-label="Key pairs" className="list-none space-y-4 p-0">
+              {keyPairs.map((pair) => {
+                const isEditing = editingId === pair.id;
+                const isOpen = expandedId === pair.id || isEditing;
+                const panelId = `key-details-${pair.id}`;
+                return (
+                  <li key={pair.id}>
+                    <Card>
+                      <CardHeader className="flex-row items-center justify-between gap-2 space-y-0 px-4 py-3 sm:px-6">
+                        <CardTitle as="h2" className="min-w-0 flex-1 text-xl leading-normal">
+                          <button
+                            type="button"
+                            ref={trackRef(toggleRefs, pair.id)}
+                            aria-expanded={isOpen}
+                            aria-controls={panelId}
+                            disabled={isEditing}
+                            onClick={() => toggleExpand(pair.id)}
+                            className="flex min-h-10 w-full items-center gap-3 rounded-md px-2 text-left transition-colors hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background"
+                          >
+                            {isOpen ? (
+                              <ChevronUp className="h-5 w-5 shrink-0" aria-hidden="true" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5 shrink-0" aria-hidden="true" />
+                            )}
+                            <span className="truncate">{pair.name}</span>
+                          </button>
+                        </CardTitle>
 
-                  <div className="flex gap-2">
-                    <TooltipProvider>
-                      <Tooltip delayDuration={0}>
-                        <TooltipTrigger asChild>
+                        <div className="flex shrink-0 gap-1">
+                          <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Export key pair ${pair.name}`}
+                                onClick={() => handleExport(pair)}
+                              >
+                                <Download className="h-5 w-5" aria-hidden="true" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="w-80">
+                              <div className="space-y-2">
+                                <p className="font-medium">Export Key Pair</p>
+                                <div className="text-sm">
+                                  <p>Downloads '{pair.name}.zip' containing:</p>
+                                  <ul className="list-disc list-inside mt-1">
+                                    <li>public_key.pem</li>
+                                    <li>private_key.pem</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                          {isEditing && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Delete key pair ${pair.name}`}
+                              onClick={() => handleDelete(pair.id)}
+                            >
+                              <Trash2 className="h-5 w-5" aria-hidden="true" />
+                            </Button>
+                          )}
                           <Button
+                            ref={trackRef(editRefs, pair.id)}
                             variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExport(pair);
+                            size="icon"
+                            aria-label={`Edit key pair ${pair.name}`}
+                            aria-pressed={isEditing}
+                            onClick={() => {
+                              setEditErrors({});
+                              toggleEdit(pair);
                             }}
                           >
-                            <Download className="h-5 w-5" />
+                            <Pencil
+                              className={`h-5 w-5 ${isEditing ? "text-primary" : ""}`}
+                              aria-hidden="true"
+                            />
                           </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="w-80" onClick={(e) => e.stopPropagation()}>
-                          <div className="space-y-2">
-                            <h4 className="font-medium">Export Key Pair</h4>
-                            <div className="text-sm">
-                              <p>Downloads '{pair.name}.zip' containing:</p>
-                              <ul className="list-disc list-inside mt-1">
-                                <li>public_key.pem</li>
-                                <li>private_key.pem</li>
-                              </ul>
-                            </div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    {editingId === pair.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(pair.id);
-                        }}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleEdit(pair);
-                      }}
-                    >
-                      <Pencil
-                        className={`h-5 w-5 ${editingId === pair.id ? "text-primary" : ""}`}
-                      />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              {(expandedId === pair.id || editingId === pair.id) && (
-                <CardContent className="space-y-4 px-6 py-4">
-                  {editingId === pair.id ? (
-                    <KeyPairForm
-                      mode="edit"
-                      keyPair={editingKeyPair || {}}
-                      onChange={(e) =>
-                        setEditingKeyPair((prev) => (prev ? { ...prev, ...e } : null))
-                      }
-                      onSave={handleUpdateKey}
-                      onCancel={cancelEditing}
-                    />
-                  ) : (
-                    <>
-                      <div className="space-y-2 mb-12">
-                        <Label className="key-label">Public Key (PEM)</Label>
-                        <div className="key-display blurred">{pair.publicKey}</div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="key-label mt-6">Private Key (PEM)</Label>
-                        <div className="key-display blurred">{pair.privateKey}</div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              )}
-            </Card>
-          ))}
-        </div>
+                        </div>
+                      </CardHeader>
+                      {isOpen && (
+                        <CardContent id={panelId} className="space-y-4 px-6 py-4">
+                          {isEditing ? (
+                            <KeyPairForm
+                              mode="edit"
+                              keyPair={editingKeyPair || {}}
+                              errors={editErrors}
+                              failedSubmits={editFailedSubmits}
+                              onChange={(e) => {
+                                setEditErrors((prev) =>
+                                  clearChangedErrors(prev, editingKeyPair ?? {}, e),
+                                );
+                                setEditingKeyPair((prev) => (prev ? { ...prev, ...e } : null));
+                              }}
+                              onSave={handleUpdateKey}
+                              onCancel={() => closeEditForm(pair.id)}
+                            />
+                          ) : (
+                            <>
+                              <div className="mb-12">
+                                <KeyDisplay
+                                  label="Public Key (PEM)"
+                                  kind="public"
+                                  value={pair.publicKey}
+                                />
+                              </div>
+                              <KeyDisplay
+                                label="Private Key (PEM)"
+                                kind="private"
+                                value={pair.privateKey}
+                              />
+                            </>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  </li>
+                );
+              })}
+            </ul>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );

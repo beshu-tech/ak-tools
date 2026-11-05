@@ -135,6 +135,41 @@ describe("KeyTextarea", () => {
     await userEvent.type(screen.getByPlaceholderText("PEM"), "x");
     expect(onChange).toHaveBeenCalledWith("x");
   });
+
+  it("exposes required, invalid and described-by state", () => {
+    render(
+      <>
+        <KeyTextarea
+          id="k"
+          value=""
+          onChange={vi.fn()}
+          placeholder="PEM"
+          required
+          invalid
+          describedBy="k-err"
+        />
+        <p id="k-err">Bad</p>
+      </>,
+    );
+    const field = screen.getByPlaceholderText("PEM");
+    expect(field).toBeRequired();
+    expect(field).toHaveAttribute("aria-required", "true");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription("Bad");
+  });
+
+  it("sets no aria-invalid or aria-describedby by default", () => {
+    render(<KeyTextarea id="k" value="" onChange={vi.fn()} placeholder="PEM" />);
+    const field = screen.getByPlaceholderText("PEM");
+    expect(field).not.toHaveAttribute("aria-invalid");
+    expect(field).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("forwards its ref to the textarea", () => {
+    const ref = { current: null as HTMLTextAreaElement | null };
+    render(<KeyTextarea ref={ref} id="k" value="" onChange={vi.fn()} placeholder="PEM" />);
+    expect(ref.current).toBe(screen.getByPlaceholderText("PEM"));
+  });
 });
 
 describe("KeyPairForm", () => {
@@ -187,5 +222,89 @@ describe("KeyPairForm", () => {
   it("tolerates a partial key pair", () => {
     setup({ keyPair: {} });
     expect(screen.getByPlaceholderText("Name")).toHaveValue("");
+  });
+
+  it("labels each field and marks it required", () => {
+    setup();
+    for (const label of ["Name", "Public key (PEM)", "Private key (PEM)"]) {
+      expect(screen.getByLabelText(label)).toBeRequired();
+    }
+    expect(screen.getByLabelText("Name")).toBe(screen.getByPlaceholderText("Name"));
+  });
+
+  it("focuses the name field when it opens", () => {
+    setup();
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+  });
+
+  it("uses unique field ids for two forms on screen", () => {
+    render(
+      <>
+        <KeyPairForm
+          mode="create"
+          keyPair={{}}
+          onChange={vi.fn()}
+          onSave={vi.fn()}
+          onCancel={vi.fn()}
+        />
+        <KeyPairForm
+          mode="edit"
+          keyPair={{}}
+          onChange={vi.fn()}
+          onSave={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </>,
+    );
+    const ids = screen.getAllByLabelText("Name").map((el) => el.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("shows inline errors, wires them to their fields and focuses the first invalid field", () => {
+    const errors = { publicKey: "Public key is required", privateKey: "Private key is required" };
+    render(
+      <KeyPairForm
+        mode="create"
+        keyPair={{ name: "n" }}
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        errors={errors}
+        failedSubmits={1}
+      />,
+    );
+    const name = screen.getByLabelText("Name");
+    const pub = screen.getByLabelText("Public key (PEM)");
+    const priv = screen.getByLabelText("Private key (PEM)");
+    expect(name).not.toHaveAttribute("aria-invalid");
+    expect(name).not.toHaveAttribute("aria-describedby");
+    expect(pub).toHaveAttribute("aria-invalid", "true");
+    expect(pub).toHaveAccessibleDescription("Public key is required");
+    expect(priv).toHaveAttribute("aria-invalid", "true");
+    expect(priv).toHaveAccessibleDescription("Private key is required");
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(pub).toHaveFocus();
+  });
+
+  it("does not move the focus when an error clears without a new failed submit", () => {
+    const props = {
+      mode: "create" as const,
+      keyPair: {},
+      onChange: vi.fn(),
+      onSave: vi.fn(),
+      onCancel: vi.fn(),
+    };
+    const { rerender } = render(
+      <KeyPairForm
+        {...props}
+        errors={{ name: "Name is required", publicKey: "x" }}
+        failedSubmits={1}
+      />,
+    );
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+    screen.getByLabelText("Private key (PEM)").focus();
+    rerender(<KeyPairForm {...props} errors={{ publicKey: "x" }} failedSubmits={1} />);
+    expect(screen.getByLabelText("Private key (PEM)")).toHaveFocus();
   });
 });

@@ -17,18 +17,10 @@ beforeAll(async () => {
 
 const stored = (): KeyPair[] => JSON.parse(localStorage.getItem("keyPairs") ?? "[]");
 
-/**
- * Icon-only buttons have no accessible name; find them by their lucide icon.
- * Substring match: lucide renames some icons across versions (trash-2 → trash2).
- */
-const iconButton = (scope: HTMLElement | Document, icon: string): HTMLElement => {
-  const svg = scope.querySelector(`svg[class*="lucide-${icon}"]`);
-  const button = svg?.closest("button");
-  if (!button) throw new Error(`no button with icon ${icon}`);
-  return button;
-};
-const cardOf = (name: string) =>
-  screen.getByText(name).closest('[data-slot="card"]') as HTMLElement;
+const newButton = () => screen.getByRole("button", { name: /New key pair/ });
+const action = (verb: "Export" | "Edit" | "Delete", name: string) =>
+  screen.getByRole("button", { name: `${verb} key pair ${name}` });
+const disclosure = (name: string) => screen.getByRole("button", { name });
 
 const fillForm = async (
   user: ReturnType<typeof renderApp>["user"],
@@ -101,18 +93,18 @@ describe("Keys page", () => {
   describe("add", () => {
     it("opens and cancels the create form", async () => {
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(document, "plus"));
+      await user.click(newButton());
       expect(screen.getByPlaceholderText("Name")).toBeInTheDocument();
-      expect(iconButton(document, "plus")).toBeDisabled();
+      expect(newButton()).toBeDisabled();
 
       await user.click(screen.getByRole("button", { name: "Cancel" }));
       expect(screen.queryByPlaceholderText("Name")).not.toBeInTheDocument();
-      expect(iconButton(document, "plus")).toBeEnabled();
+      expect(newButton()).toBeEnabled();
     });
 
     it("saves a valid key pair to localStorage and shows it in the list", async () => {
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(document, "plus"));
+      await user.click(newButton());
       await fillForm(user, {
         name: "  Carol key  ",
         publicKey: alice.publicKey,
@@ -186,11 +178,12 @@ describe("Keys page", () => {
       ];
       it.each(cases)("%s", async (_label, input, expected) => {
         const { user } = renderApp(<Keys />);
-        await user.click(iconButton(document, "plus"));
+        await user.click(newButton());
         await fillForm(user, input);
         await user.click(screen.getByRole("button", { name: "Create" }));
 
-        expect(await screen.findByText(expected, { exact: false })).toBeInTheDocument();
+        // shown both as a toast and inline
+        expect((await screen.findAllByText(expected, { exact: false })).length).toBeGreaterThan(0);
         expect(stored()).toHaveLength(0);
         // form stays open so the user can fix the input
         expect(screen.getByPlaceholderText("Name")).toBeInTheDocument();
@@ -199,7 +192,7 @@ describe("Keys page", () => {
 
     it('"Generate Random Keys" fills the form with real PEMs that pass validation', async () => {
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(document, "plus"));
+      await user.click(newButton());
       await user.click(screen.getByRole("button", { name: /Generate Random Keys/ }));
 
       expect(await screen.findByText("Keys generated successfully")).toBeInTheDocument();
@@ -221,7 +214,7 @@ describe("Keys page", () => {
     it("does not offer key generation when editing", async () => {
       seedKeyPairs([alice]);
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       expect(
         screen.queryByRole("button", { name: /Generate Random Keys/ }),
       ).not.toBeInTheDocument();
@@ -233,7 +226,7 @@ describe("Keys page", () => {
       seedKeyPairs([alice, bob]);
       const { user } = renderApp(<Keys />);
 
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       const name = screen.getByPlaceholderText("Name");
       expect(name).toHaveValue("Alice key");
       await user.clear(name);
@@ -254,18 +247,18 @@ describe("Keys page", () => {
     it("rejects an invalid edit and keeps the stored key unchanged", async () => {
       seedKeyPairs([alice]);
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       await user.clear(screen.getByPlaceholderText("Name"));
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      expect(await screen.findByText("Name is required")).toBeInTheDocument();
+      expect((await screen.findAllByText("Name is required")).length).toBeGreaterThan(0);
       expect(stored()[0].name).toBe("Alice key");
     });
 
     it("cancel discards edits", async () => {
       seedKeyPairs([alice]);
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       await user.type(screen.getByPlaceholderText("Name"), " changed");
       await user.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -277,9 +270,9 @@ describe("Keys page", () => {
     it("clicking the pencil again closes the edit form", async () => {
       seedKeyPairs([alice]);
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       expect(screen.getByPlaceholderText("Name")).toBeInTheDocument();
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await user.click(action("Edit", "Alice key"));
       expect(screen.queryByPlaceholderText("Name")).not.toBeInTheDocument();
     });
   });
@@ -288,21 +281,21 @@ describe("Keys page", () => {
     const openEdit = async () => {
       seedKeyPairs([alice, bob]);
       const view = renderApp(<Keys />);
-      await view.user.click(iconButton(cardOf("Alice key"), "pencil"));
+      await view.user.click(action("Edit", "Alice key"));
       return view;
     };
 
     it("is only offered while editing", async () => {
       seedKeyPairs([alice]);
       const { user } = renderApp(<Keys />);
-      expect(document.querySelector('svg[class*="lucide-trash"]')).toBeNull();
-      await user.click(iconButton(cardOf("Alice key"), "pencil"));
-      expect(iconButton(cardOf("Alice key"), "trash")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Delete key pair/ })).not.toBeInTheDocument();
+      await user.click(action("Edit", "Alice key"));
+      expect(action("Delete", "Alice key")).toBeInTheDocument();
     });
 
     it("asks for confirmation and deletes on Confirm", async () => {
       const { user } = await openEdit();
-      await user.click(iconButton(cardOf("Alice key"), "trash"));
+      await user.click(action("Delete", "Alice key"));
       expect(
         screen.getByText("Are you sure you want to delete this key pair?"),
       ).toBeInTheDocument();
@@ -315,7 +308,7 @@ describe("Keys page", () => {
 
     it("keeps the key when the confirmation is declined", async () => {
       const { user } = await openEdit();
-      await user.click(iconButton(cardOf("Alice key"), "trash"));
+      await user.click(action("Delete", "Alice key"));
       // The edit form also has a Cancel button; scope to the confirm dialog.
       const dialog = screen.getByText(
         "Are you sure you want to delete this key pair?",
@@ -349,7 +342,7 @@ describe("Keys page", () => {
       });
 
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "download"));
+      await user.click(action("Export", "Alice key"));
 
       expect(await screen.findByText("Exported Alice key.zip")).toBeInTheDocument();
       expect(downloads).toEqual(["Alice key.zip"]);
@@ -367,7 +360,7 @@ describe("Keys page", () => {
       URL.revokeObjectURL = vi.fn();
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
       const { user } = renderApp(<Keys />);
-      await user.click(iconButton(cardOf("Alice key"), "download"));
+      await user.click(action("Export", "Alice key"));
       await screen.findByText("Exported Alice key.zip");
       expect(screen.queryByText("Public Key (PEM)")).not.toBeInTheDocument();
     });
@@ -440,5 +433,287 @@ describe("Keys page", () => {
     renderApp(<Keys />);
     expect(screen.getByRole("heading", { name: "Keys Management" })).toBeInTheDocument();
     expect(within(document.body).queryByText("Alice key")).not.toBeInTheDocument();
+  });
+});
+
+describe("Keys page accessibility", () => {
+  describe("list and headings", () => {
+    it("renders the key pairs as a named list", () => {
+      seedKeyPairs([alice, bob]);
+      renderApp(<Keys />);
+      const list = screen.getByRole("list", { name: "Key pairs" });
+      expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    it("makes each key name an h2 that holds the disclosure button", () => {
+      seedKeyPairs([alice]);
+      renderApp(<Keys />);
+      const heading = screen.getByRole("heading", { level: 2, name: "Alice key" });
+      expect(within(heading).getByRole("button", { name: "Alice key" })).toBe(
+        disclosure("Alice key"),
+      );
+    });
+  });
+
+  describe("disclosure", () => {
+    it("is collapsed by default and toggles with Enter and Space", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      const toggle = disclosure("Alice key");
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+      await user.tab(); // Import
+      await user.tab(); // New key pair
+      await user.tab(); // SEC1 help
+      await user.tab(); // disclosure
+      expect(toggle).toHaveFocus();
+
+      await user.keyboard("{Enter}");
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      const panel = document.getElementById(toggle.getAttribute("aria-controls")!);
+      expect(panel).toBeInTheDocument();
+      expect(within(panel!).getByText("Public Key (PEM)")).toBeInTheDocument();
+
+      await user.keyboard(" ");
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByText("Public Key (PEM)")).not.toBeInTheDocument();
+    });
+
+    it("keeps the export, edit and delete buttons outside the disclosure button", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      const toggle = disclosure("Alice key");
+      await user.click(action("Edit", "Alice key"));
+      expect(toggle.contains(action("Edit", "Alice key"))).toBe(false);
+      expect(toggle.contains(action("Delete", "Alice key"))).toBe(false);
+      expect(toggle.contains(action("Export", "Alice key"))).toBe(false);
+    });
+
+    it("does not toggle when the edit button is pressed and shows the edit state", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      const edit = action("Edit", "Alice key");
+      expect(edit).toHaveAttribute("aria-pressed", "false");
+      await user.click(edit);
+      expect(edit).toHaveAttribute("aria-pressed", "true");
+      // the edit form is open, so the details are shown and the disclosure cannot be collapsed
+      expect(disclosure("Alice key")).toHaveAttribute("aria-expanded", "true");
+      expect(disclosure("Alice key")).toBeDisabled();
+    });
+  });
+
+  describe("key material", () => {
+    const open = async () => {
+      seedKeyPairs([alice]);
+      const view = renderApp(<Keys />);
+      await view.user.click(disclosure("Alice key"));
+      return view;
+    };
+    const pemOf = (marker: RegExp) => screen.getByText(marker);
+
+    it("is blurred and hidden from assistive technology until shown", async () => {
+      await open();
+      for (const marker of [/BEGIN PUBLIC KEY/, /BEGIN PRIVATE KEY/]) {
+        expect(pemOf(marker)).toHaveAttribute("aria-hidden", "true");
+        expect(pemOf(marker)).toHaveClass("blurred");
+      }
+      expect(screen.getByRole("button", { name: "Show private key" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show public key" })).toBeInTheDocument();
+    });
+
+    it("reveals and hides a field with its toggle, by keyboard too", async () => {
+      const { user } = await open();
+      const toggle = screen.getByRole("button", { name: "Show private key" });
+      toggle.focus();
+      await user.keyboard("{Enter}");
+
+      const hide = screen.getByRole("button", { name: "Hide private key" });
+      expect(pemOf(/BEGIN PRIVATE KEY/)).not.toHaveAttribute("aria-hidden", "true");
+      expect(pemOf(/BEGIN PRIVATE KEY/)).not.toHaveClass("blurred");
+      // the other field stays hidden
+      expect(pemOf(/BEGIN PUBLIC KEY/)).toHaveAttribute("aria-hidden", "true");
+
+      await user.click(hide);
+      expect(pemOf(/BEGIN PRIVATE KEY/)).toHaveAttribute("aria-hidden", "true");
+      expect(screen.getByRole("button", { name: "Show private key" })).toBeInTheDocument();
+    });
+
+    it("never puts key material in an accessible name", async () => {
+      const { user } = await open();
+      await user.click(screen.getByRole("button", { name: "Show private key" }));
+      for (const button of screen.getAllByRole("button")) {
+        expect(button.getAttribute("aria-label") ?? "").not.toMatch(/BEGIN|PRIVATE KEY-----/);
+      }
+      expect(
+        screen.getByRole("group", { name: "Private Key (PEM)" }).getAttribute("aria-label"),
+      ).toBeNull();
+    });
+  });
+
+  describe("form labels and errors", () => {
+    it("labels every input and marks them required", async () => {
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      for (const label of ["Name", "Public key (PEM)", "Private key (PEM)"]) {
+        const field = screen.getByLabelText(label);
+        expect(field).toBeRequired();
+        expect(field).toHaveAttribute("aria-required", expect.any(String));
+      }
+      // placeholders stay
+      expect(screen.getByPlaceholderText("Name")).toBe(screen.getByLabelText("Name"));
+    });
+
+    it("uses unique ids when two forms are on screen", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      await user.click(action("Edit", "Alice key"));
+      const names = screen.getAllByLabelText("Name");
+      expect(names).toHaveLength(2);
+      expect(new Set(names.map((n) => n.id)).size).toBe(2);
+    });
+
+    it("wires inline errors with aria-invalid and aria-describedby, and clears them on edit", async () => {
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      const name = screen.getByLabelText("Name");
+      expect(name).not.toHaveAttribute("aria-invalid");
+
+      await user.click(screen.getByRole("button", { name: "Create" }));
+      const alerts = await screen.findAllByRole("alert");
+      expect(alerts.length).toBeGreaterThan(0);
+      for (const [label, message] of [
+        ["Name", "Name is required"],
+        ["Public key (PEM)", "Public key is required"],
+        ["Private key (PEM)", "Private key is required"],
+      ]) {
+        const field = screen.getByLabelText(label);
+        expect(field).toHaveAttribute("aria-invalid", "true");
+        const error = document.getElementById(field.getAttribute("aria-describedby")!)!;
+        expect(error).toHaveAttribute("role", "alert");
+        expect(error).toHaveTextContent(message);
+      }
+      expect(name).toHaveFocus(); // first invalid field
+
+      await user.type(name, "ok");
+      expect(name).not.toHaveAttribute("aria-invalid");
+      expect(name).not.toHaveAttribute("aria-describedby");
+      expect(screen.getByLabelText("Public key (PEM)")).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("also wires inline errors in the edit form", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      await user.clear(screen.getByLabelText("Name"));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      const name = screen.getByLabelText("Name");
+      expect(name).toHaveAttribute("aria-invalid", "true");
+      expect(document.getElementById(name.getAttribute("aria-describedby")!)).toHaveTextContent(
+        "Name is required",
+      );
+    });
+  });
+
+  describe("focus management", () => {
+    it("moves focus to the first field when the create form opens", async () => {
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      expect(screen.getByLabelText("Name")).toHaveFocus();
+    });
+
+    it("moves focus to the first field when the edit form opens", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      expect(screen.getByLabelText("Name")).toHaveFocus();
+    });
+
+    it("returns focus to the New button after cancelling the create form", async () => {
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(newButton()).toHaveFocus();
+    });
+
+    it("returns focus to the New button after saving a new key pair", async () => {
+      const { user } = renderApp(<Keys />);
+      await user.click(newButton());
+      await user.click(screen.getByRole("button", { name: /Generate Random Keys/ }));
+      await screen.findByText("Keys generated successfully");
+      await user.click(screen.getByRole("button", { name: "Create" }));
+      await waitFor(() => expect(stored()).toHaveLength(1));
+      expect(newButton()).toHaveFocus();
+    });
+
+    it("returns focus to the Edit button after cancelling or saving an edit", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(action("Edit", "Alice key")).toHaveFocus();
+
+      await user.click(action("Edit", "Alice key"));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(action("Edit", "Alice key")).toHaveFocus());
+    });
+
+    it("moves focus to the next key pair after a delete", async () => {
+      seedKeyPairs([alice, bob]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      await user.click(action("Delete", "Alice key"));
+      await user.click(screen.getByRole("button", { name: "Confirm" }));
+      await screen.findByText("Key pair deleted");
+      await waitFor(() => expect(disclosure("Bob key")).toHaveFocus());
+    });
+
+    it("moves focus to the previous key pair when the last one is deleted", async () => {
+      seedKeyPairs([alice, bob]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Bob key"));
+      await user.click(action("Delete", "Bob key"));
+      await user.click(screen.getByRole("button", { name: "Confirm" }));
+      await screen.findByText("Key pair deleted");
+      await waitFor(() => expect(disclosure("Alice key")).toHaveFocus());
+    });
+
+    it("moves focus to the New button after deleting the only key pair", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      await user.click(action("Delete", "Alice key"));
+      await user.click(screen.getByRole("button", { name: "Confirm" }));
+      await screen.findByText("Key pair deleted");
+      await waitFor(() => expect(newButton()).toHaveFocus());
+    });
+  });
+
+  describe("import control", () => {
+    it("is a named button that opens the file picker of the hidden input", async () => {
+      const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+      const { user } = renderApp(<Keys />);
+      const input = document.getElementById("import-key") as HTMLInputElement;
+      expect(input).toHaveAttribute("type", "file");
+
+      const button = screen.getByRole("button", { name: "Import key pair from ZIP" });
+      expect(button.tagName).toBe("BUTTON");
+      button.focus();
+      await user.keyboard("{Enter}");
+      expect(click).toHaveBeenCalledTimes(1);
+      expect(click.mock.contexts[0]).toBe(input);
+      click.mockRestore();
+    });
+  });
+
+  describe("decorative icons", () => {
+    it("hides every icon from assistive technology", async () => {
+      seedKeyPairs([alice]);
+      const { user } = renderApp(<Keys />);
+      await user.click(action("Edit", "Alice key"));
+      for (const svg of document.querySelectorAll("svg")) {
+        expect(svg).toHaveAttribute("aria-hidden", "true");
+      }
+    });
   });
 });

@@ -21,10 +21,15 @@ const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
 );
 CardHeader.displayName = "CardHeader";
 
-const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  /** Element to render. Use a heading level where the title names a section. */
+  as?: "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+}
+
+const CardTitle = React.forwardRef<HTMLDivElement, CardTitleProps>(
+  ({ className, as: Comp = "div", ...props }, ref) => (
+    <Comp
+      ref={ref as React.Ref<HTMLHeadingElement>}
       className={cn("text-2xl font-semibold leading-none tracking-tight", className)}
       {...props}
     />
