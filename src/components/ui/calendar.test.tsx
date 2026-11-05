@@ -47,6 +47,15 @@ describe("Calendar", () => {
     expect(screen.getByText("May 2026")).toBeInTheDocument();
   });
 
+  // A DOM emulator has no hit-testing: it cannot see that the (positioned) month
+  // caption covered the arrows and swallowed their clicks. Checked in a real browser;
+  // this only guards the class that keeps the navigation above the caption.
+  it("keeps the month navigation stacked above the caption", () => {
+    render(<Calendar mode="single" defaultMonth={JUNE_2026} />);
+    const next = screen.getByRole("button", { name: /next month/i });
+    expect(next.closest(".z-10")).not.toBeNull();
+  });
+
   it("shows days from adjacent months by default and hides them when showOutsideDays=false", () => {
     const { unmount } = render(<Calendar mode="single" defaultMonth={JUNE_2026} />);
     // June 2026 starts on a Monday: Sunday 31 May is rendered as an outside day
