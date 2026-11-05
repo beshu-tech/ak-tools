@@ -1,6 +1,7 @@
 import type { BeforeMount, EditorProps } from "@monaco-editor/react";
 
 export const MONACO_OPTIONS: NonNullable<EditorProps["options"]> = {
+  ariaLabel: "Activation key payload, JSON. Press Control M to let Tab leave the editor.",
   minimap: { enabled: false },
   formatOnPaste: true,
   formatOnType: true,

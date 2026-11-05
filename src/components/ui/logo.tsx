@@ -22,7 +22,7 @@ export function Logo() {
       <LogoMark />
       <span className="font-heading text-2xl font-normal leading-none tracking-tight">Beshu</span>
       <span aria-hidden="true" className="hidden h-6 w-px bg-border sm:block" />
-      <span className="hidden font-heading text-sm font-light uppercase tracking-widest text-muted-foreground sm:block">
+      <span className="sr-only font-heading text-sm font-light uppercase tracking-widest text-muted-foreground sm:not-sr-only">
         AK Tools
       </span>
     </span>

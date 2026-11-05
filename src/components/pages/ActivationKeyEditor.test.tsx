@@ -53,6 +53,10 @@ async function pasteToken(user: UserEvent, token: string) {
   await user.paste(token);
 }
 
+/** Actions are "aria-disabled", not "disabled": still focusable, so the reason can be read. */
+const expectOff = (el: HTMLElement) => expect(el).toHaveAttribute("aria-disabled", "true");
+const expectOn = (el: HTMLElement) => expect(el).not.toHaveAttribute("aria-disabled", "true");
+
 const monaco = () => screen.findByTestId("monaco") as Promise<HTMLTextAreaElement>;
 
 /** The (single) element showing the current activation key. */
@@ -212,7 +216,7 @@ describe("ActivationKeyEditor — signature validation", () => {
     await pasteToken(user, token);
     await monaco();
     await waitFor(() => expect(validationIndicator()).toBe("invalid"));
-    expect(screen.getByRole("button", { name: /generate activation key/i })).toBeDisabled();
+    expectOff(screen.getByRole("button", { name: /generate activation key/i }));
   });
 
   it("auto-selects the first stored key as the signing key", async () => {
@@ -268,8 +272,8 @@ describe("ActivationKeyEditor — signing", () => {
     fireEvent.change(await monaco(), { target: { value: "{ not json" } });
 
     // Nothing can be signed: the button is disabled and the status says why.
-    expect(screen.getByRole("button", { name: /generate activation key/i })).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent(/not a valid JSON object/i);
+    expectOff(screen.getByRole("button", { name: /generate activation key/i }));
+    expect(document.querySelector("[data-status]")).toHaveTextContent(/not a valid JSON object/i);
     expect(currentToken()).toBe(token);
   });
 
@@ -334,7 +338,8 @@ describe("ActivationKeyEditor — date overrides", () => {
     const days = dayCells(dialog).map((b) => b.textContent);
     expect(days).toEqual(expect.arrayContaining(["1", "15", "28"]));
     // The calendar opens on the month of the date being edited.
-    expect(within(dialog).getByText("June 2090")).toBeInTheDocument();
+    expect(within(dialog).getByText("June")).toBeInTheDocument();
+    expect(within(dialog).getByRole("textbox", { name: "Year" })).toHaveValue("2090");
   });
 
   it("applies a new expiry date picked in the calendar to exp", async () => {
@@ -365,7 +370,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
   const exp = Math.floor(new Date(2090, 5, 10, 15, 30).getTime() / 1000);
 
   const generate = () => screen.getByRole("button", { name: /generate activation key/i });
-  const status = () => screen.getByRole("status");
+  const status = () => document.querySelector("[data-status]") as HTMLElement;
   const copy = (container: HTMLElement) =>
     container.querySelector(".ak-copy-button") as HTMLElement;
   const tokenBox = () => document.querySelector("[data-stale]") as HTMLElement;
@@ -381,30 +386,66 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
 
   it("starts up to date: nothing to generate, the key is copyable", async () => {
     const { container } = await open();
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
     expect(status()).toHaveAttribute("data-status", "up-to-date");
     expect(tokenBox()).toHaveAttribute("data-stale", "false");
-    expect(copy(container)).toBeEnabled();
+    expectOn(copy(container));
     expect(screen.queryByText(/outdated/i)).toBeNull();
   });
 
   it("Save as template is a quiet action in the Template section, not next to Generate", async () => {
     await open();
     const save = screen.getByRole("button", { name: /save as template/i });
-    expect(save).toBeEnabled();
+    expectOn(save);
     expect(save.parentElement).toBe(screen.getByText("Template").parentElement);
     expect(generate().parentElement).not.toContainElement(save);
+  });
+
+  describe("a disabled action stays reachable and explains itself", () => {
+    it("Generate is focusable by keyboard when there is nothing to sign, and points at the reason", async () => {
+      const { user } = await open();
+      generate().focus();
+      expect(generate()).toHaveFocus();
+      expect(generate()).toHaveAccessibleDescription(/the activation key matches the payload/i);
+      // activating it does nothing
+      const before = currentToken();
+      await user.keyboard("{Enter}");
+      expect(currentToken()).toBe(before);
+    });
+
+    it("the reason follows the state: edited, invalid JSON", async () => {
+      const { editor } = await open();
+      editPayload(editor, { sub: "changed" });
+      expect(generate()).toHaveAccessibleDescription(/you edited the payload/i);
+      fireEvent.change(editor, { target: { value: "{" } });
+      expect(generate()).toHaveAccessibleDescription(/not a valid JSON object/i);
+    });
+
+    it("Copy is explained by the Outdated badge while the key lacks the edits", async () => {
+      const { editor, container } = await open();
+      editPayload(editor, { sub: "changed" });
+      expect(copy(container)).toHaveAccessibleDescription(/outdated/i);
+      expectOff(copy(container));
+    });
+
+    it("Save as template says why it is unavailable instead of silently disabling", async () => {
+      const { editor } = await open();
+      editPayload(editor, { sub: "changed" });
+      const save = screen.getByRole("button", { name: /save as template/i });
+      expectOff(save);
+      expect(save).toHaveAccessibleDescription(/generate the key first/i);
+    });
   });
 
   it("an edit to the payload enables Generate and marks the shown key outdated", async () => {
     const { editor, token, container } = await open();
     editPayload(editor, { sub: "changed" });
 
-    expect(generate()).toBeEnabled();
+    expectOn(generate());
     expect(status()).toHaveAttribute("data-status", "edited");
     expect(screen.getByText(/outdated: generate to update/i)).toBeInTheDocument();
     expect(tokenBox()).toHaveAttribute("data-stale", "true");
-    expect(copy(container)).toBeDisabled();
+    expectOff(copy(container));
     expect(screen.getByTitle(/edited since the key was last generated/i)).toBeInTheDocument();
     expect(currentToken()).toBe(token);
   });
@@ -414,7 +455,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     const payload = JSON.parse(editor.value);
     const reordered = Object.fromEntries(Object.entries(payload).reverse());
     fireEvent.change(editor, { target: { value: JSON.stringify(reordered) } });
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
     expect(status()).toHaveAttribute("data-status", "up-to-date");
   });
 
@@ -425,10 +466,10 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
 
     expect(decodePayload(newToken).sub).toBe("changed");
     expect(await verifies(newToken, keyPair)).toBe(true);
-    await waitFor(() => expect(generate()).toBeDisabled());
+    await waitFor(() => expectOff(generate()));
     expect(status()).toHaveAttribute("data-status", "up-to-date");
     expect(tokenBox()).toHaveAttribute("data-stale", "false");
-    expect(copy(container)).toBeEnabled();
+    expectOn(copy(container));
     expect(validationIndicator()).toBe("valid");
   });
 
@@ -439,7 +480,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     await user.click(screen.getByRole("button", { name: /revert/i }));
 
     expect(JSON.parse((await monaco()).value)).toEqual(original);
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
     expect(status()).toHaveAttribute("data-status", "up-to-date");
   });
 
@@ -447,7 +488,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     const { editor, user } = await open();
     fireEvent.change(editor, { target: { value: "{ nope" } });
 
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
     expect(status()).toHaveAttribute("data-status", "invalid-json");
     // Dates cannot be picked into broken JSON: they stay readable but not editable.
     expect(screen.getByText("10 Jun 2090")).toBeInTheDocument();
@@ -469,7 +510,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
       expect(edited.iat).toBe(iat);
       expect(editor).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "20 Jun 2090" })).toBeInTheDocument();
-      expect(generate()).toBeEnabled();
+      expectOn(generate());
       expect(tokenBox()).toHaveAttribute("data-stale", "true");
     });
 
@@ -481,7 +522,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
       const edited = JSON.parse((await monaco()).value);
       expect(new Date(edited.iat * 1000).getDate()).toBe(20);
       expect(edited.exp).toBe(exp);
-      expect(generate()).toBeEnabled();
+      expectOn(generate());
     });
 
     it("signing after a pick puts the picked date in the key", async () => {
@@ -503,7 +544,9 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     it("the calendar opens on the month of the date being edited", async () => {
       const { user } = await open();
       await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
-      expect(within(screen.getByRole("dialog")).getByText("June 2090")).toBeInTheDocument();
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText("June")).toBeInTheDocument();
+      expect(within(dialog).getByRole("textbox", { name: "Year" })).toHaveValue("2090");
     });
   });
 
@@ -564,7 +607,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     await monaco();
 
     expect(status()).toHaveAttribute("data-status", "key-mismatch");
-    expect(generate()).toBeEnabled();
+    expectOn(generate());
     const resigned = await sign(user);
     expect(await verifies(resigned, keyPair)).toBe(true);
     await waitFor(() => expect(status()).toHaveAttribute("data-status", "up-to-date"));
@@ -578,7 +621,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     await monaco();
     await waitFor(() => expect(validationIndicator()).toBe("invalid"));
     expect(status()).toHaveAttribute("data-status", "up-to-date");
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
   });
 
   it("without a signing key it says so and links to the Keys page", async () => {
@@ -588,7 +631,7 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     const editor = await monaco();
     editPayload(editor, { sub: "changed" });
 
-    expect(generate()).toBeDisabled();
+    expectOff(generate());
     expect(status()).toHaveAttribute("data-status", "no-key");
     expect(within(status()).getByRole("link", { name: /go to keys/i })).toHaveAttribute(
       "href",
@@ -865,10 +908,10 @@ describe("ActivationKeyEditor — templates", () => {
 
       // Saving needs a generated key: the edit is not in the shown key yet.
       const save = screen.getByRole("button", { name: /save as template/i });
-      expect(save).toBeDisabled();
+      expectOff(save);
       expect(save).toHaveAttribute("title", expect.stringMatching(/generate the key first/i));
       await sign(user);
-      await waitFor(() => expect(save).toBeEnabled());
+      await waitFor(() => expectOn(save));
 
       await user.click(save);
       expect(await screen.findByLabelText(/^Name/)).toHaveValue("Alpha");

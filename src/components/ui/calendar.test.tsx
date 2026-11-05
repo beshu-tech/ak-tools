@@ -57,6 +57,18 @@ describe("Calendar", () => {
     expect(screen.getByText("May")).toBeInTheDocument();
   });
 
+  // WCAG 2.5.3 Label in Name: voice control says the visible text ("click 26").
+  it("names every day button starting with the number it shows, then the full date", () => {
+    render(<Calendar mode="single" defaultMonth={JUNE_2026} selected={new Date(2026, 5, 10)} />);
+    const buttons = dayButtons();
+    expect(buttons.length).toBeGreaterThan(28);
+    for (const button of buttons) {
+      const shown = button.textContent!.trim();
+      expect(button.getAttribute("aria-label")).toMatch(new RegExp(`^${shown} \\w+ \\d{4}, \\w+`));
+    }
+    expect(dayButton(10)).toHaveAccessibleName("10 June 2026, Wednesday, selected");
+  });
+
   it("shows days from adjacent months by default and hides them when showOutsideDays=false", () => {
     const { unmount } = render(<Calendar mode="single" defaultMonth={JUNE_2026} />);
     // June 2026 starts on a Monday: Sunday 31 May is rendered as an outside day

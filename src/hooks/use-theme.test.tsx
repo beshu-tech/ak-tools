@@ -103,7 +103,7 @@ describe("ThemeToggle", () => {
       </ThemeProvider>,
     );
     expect(rootClasses()).toEqual(["dark"]);
-    await user.click(screen.getByRole("button", { name: /toggle theme/i }));
+    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
     expect(rootClasses()).toEqual(["light"]);
   });
 
@@ -114,12 +114,13 @@ describe("ThemeToggle", () => {
         <ThemeToggle />
       </ThemeProvider>,
     );
-    const toggle = screen.getByRole("button", { name: /toggle theme/i });
+    const toggle = screen.getByRole("button", { name: "Switch to dark theme" });
     expect(rootClasses()).toEqual(["light"]);
     await user.click(toggle);
     expect(rootClasses()).toEqual(["dark"]);
     expect(localStorage.getItem("t")).toBe("dark");
-    await user.click(toggle);
+    // the label always names the action that the next click performs
+    await user.click(screen.getByRole("button", { name: "Switch to light theme" }));
     expect(rootClasses()).toEqual(["light"]);
   });
 });

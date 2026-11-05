@@ -28,12 +28,20 @@ export function ValidityNotice({ expiresAt, pending = false, now }: ValidityNoti
       data-validity={validity.state}
       className={`flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-sm ${tone}`}
     >
-      {validity.state === "expired" && <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+      {validity.state === "expired" && (
+        <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+      )}
       {validity.state === "valid" && (
-        <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+        <CalendarCheck
+          aria-hidden="true"
+          className="mt-0.5 h-4 w-4 shrink-0 text-green-600 dark:text-green-400"
+        />
       )}
       {validity.state === "no-expiry" && (
-        <InfinityIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+        <InfinityIcon
+          aria-hidden="true"
+          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+        />
       )}
       <div className="space-y-0.5">
         {validity.state === "expired" && (

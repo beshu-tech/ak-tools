@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback, useState, useRef, useMemo } from "react";
+import { useReducer, useEffect, useCallback, useId, useState, useRef, useMemo } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
@@ -45,6 +45,12 @@ import {
 import "./ActivationKeyEditor.css";
 
 const ActivationKeyEditor = () => {
+  const ids = {
+    statusId: useId(),
+    staleId: useId(),
+    templateLabelId: useId(),
+    keyTriggerId: useId(),
+  };
   const { resolvedTheme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
   const { templates, addTemplate, updateTemplate, getTemplateById } = useTemplates();
@@ -311,7 +317,7 @@ const ActivationKeyEditor = () => {
       ) : (
         <Card>
           <div className="flex items-center justify-between border-b px-4 py-2 sm:px-6">
-            <span className="text-sm font-medium">Activation key</span>
+            <h2 className="text-sm font-medium">Activation key</h2>
             <Button
               variant="ghost"
               size="sm"
@@ -319,33 +325,41 @@ const ActivationKeyEditor = () => {
               aria-label="Clear activation key"
               onClick={clearJwt}
             >
-              <X className="h-4 w-4" />
+              <X aria-hidden="true" className="h-4 w-4" />
               Clear
             </Button>
           </div>
           <CardContent className="space-y-6 p-4 sm:p-6">
             <div className="ak-content-wrapper">
-              <div className="ak-editor-monaco">
-                <Editor
-                  defaultLanguage="json"
-                  value={editorValue}
-                  onChange={(value) =>
-                    dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
-                  }
-                  options={MONACO_OPTIONS}
-                  beforeMount={defineMonacoThemes}
-                  theme={resolvedTheme === "dark" ? MONACO_DARK_THEME : MONACO_LIGHT_THEME}
-                />
+              <div>
+                <div className="ak-editor-monaco">
+                  <Editor
+                    defaultLanguage="json"
+                    value={editorValue}
+                    onChange={(value) =>
+                      dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
+                    }
+                    options={MONACO_OPTIONS}
+                    beforeMount={defineMonacoThemes}
+                    theme={resolvedTheme === "dark" ? MONACO_DARK_THEME : MONACO_LIGHT_THEME}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Tab indents inside the editor. Press Ctrl+M to let Tab leave it.
+                </p>
               </div>
 
               <div className="ak-right-column">
                 {/* Template Switcher with Validation Status */}
                 <div className="space-y-2 pb-4 border-b mb-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <FileText className="h-3 w-3" />
+                    <h3
+                      id={ids.templateLabelId}
+                      className="text-xs font-normal text-muted-foreground flex items-center gap-1.5 font-sans tracking-normal"
+                    >
+                      <FileText aria-hidden="true" className="h-3 w-3" />
                       Template
-                    </Label>
+                    </h3>
                     <SaveTemplatePopover
                       saveTemplate={saveTemplate}
                       disabledReason={
@@ -355,28 +369,40 @@ const ActivationKeyEditor = () => {
                       }
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div
+                    role="group"
+                    aria-labelledby={ids.templateLabelId}
+                    className="flex items-center gap-2"
+                  >
                     {/* Validation indicator */}
                     {isDirty && (
                       <div
+                        role="img"
+                        aria-label="Edited since the key was last generated"
                         title="Edited since the key was last generated"
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-500"
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil aria-hidden="true" className="h-4 w-4" />
                       </div>
                     )}
                     {!isDirty && validation && (
                       <div
+                        role="img"
+                        aria-label={
+                          validation.isValid
+                            ? "Signature is valid for the selected key"
+                            : `Not valid: ${validation.error ?? "signature check failed"}`
+                        }
                         className={`flex items-center justify-center w-8 h-8 rounded-full ${
                           validation.isValid
-                            ? "bg-green-500/10 text-green-500"
+                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
                             : "bg-destructive/10 text-destructive"
                         }`}
                       >
                         {validation.isValid ? (
-                          <Check className="h-4 w-4" />
+                          <Check aria-hidden="true" className="h-4 w-4" />
                         ) : (
-                          <X className="h-4 w-4" />
+                          <X aria-hidden="true" className="h-4 w-4" />
                         )}
                       </div>
                     )}
@@ -409,8 +435,11 @@ const ActivationKeyEditor = () => {
 
                 {/* Signing Key Selection */}
                 <div className="space-y-2 mt-4 pt-4 border-t">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Key className="h-3 w-3" />
+                  <Label
+                    htmlFor={ids.keyTriggerId}
+                    className="text-xs text-muted-foreground flex items-center gap-1.5"
+                  >
+                    <Key aria-hidden="true" className="h-3 w-3" />
                     Signing Key
                   </Label>
                   <Select
@@ -419,7 +448,7 @@ const ActivationKeyEditor = () => {
                       dispatch({ type: "SET_SELECTED_KEY", payload: value })
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger id={ids.keyTriggerId} className="w-full">
                       <SelectValue placeholder="Select a key for signing" />
                     </SelectTrigger>
                     <SelectContent>
@@ -435,8 +464,10 @@ const ActivationKeyEditor = () => {
                 {/* Action Buttons */}
                 <div className="ak-controls mt-4">
                   <Button
-                    onClick={handleSign}
-                    disabled={!canGenerate(status)}
+                    // aria-disabled (not disabled) keeps it focusable, so the reason below can be read.
+                    onClick={() => canGenerate(status) && handleSign()}
+                    aria-disabled={!canGenerate(status)}
+                    aria-describedby={ids.statusId}
                     className="sign-button"
                   >
                     Generate Activation Key
@@ -444,19 +475,30 @@ const ActivationKeyEditor = () => {
                 </div>
 
                 <div className="mt-3">
-                  <SigningStatus status={status} onRevert={revertEdits} />
+                  <SigningStatus id={ids.statusId} status={status} onRevert={revertEdits} />
                 </div>
 
                 {jwt && (
                   <div className="ak-output space-y-2">
                     {isDirty && (
-                      <span className="inline-flex items-center gap-1.5 rounded-sm bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
-                        <AlertTriangle className="h-3.5 w-3.5" />
+                      <span
+                        id={ids.staleId}
+                        className="inline-flex items-center gap-1.5 rounded-sm bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
+                      >
+                        <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
                         Outdated: generate to update
                       </span>
                     )}
                     <div className="relative">
                       <div
+                        // Scrollable, so it must be reachable by keyboard.
+                        role="region"
+                        aria-label={
+                          isDirty
+                            ? "Generated activation key (outdated)"
+                            : "Generated activation key"
+                        }
+                        tabIndex={0}
                         className={cn("ak-output-text", isDirty && "opacity-50")}
                         data-stale={isDirty}
                       >
@@ -467,20 +509,27 @@ const ActivationKeyEditor = () => {
                         size="icon"
                         className="ak-copy-button"
                         aria-label="Copy activation key"
-                        disabled={isDirty}
+                        aria-disabled={isDirty ? true : undefined}
+                        aria-describedby={isDirty ? ids.staleId : undefined}
                         title={
                           isDirty
                             ? "Generate the key first: it does not include your edits"
                             : undefined
                         }
-                        onClick={() => copyToClipboard(jwt)}
+                        onClick={() => !isDirty && copyToClipboard(jwt)}
                       >
                         {showCopied ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check
+                            aria-hidden="true"
+                            className="h-4 w-4 text-green-600 dark:text-green-400"
+                          />
                         ) : (
-                          <Copy className="h-4 w-4" />
+                          <Copy aria-hidden="true" className="h-4 w-4" />
                         )}
                       </Button>
+                      <span role="status" className="sr-only">
+                        {showCopied ? "Activation key copied" : ""}
+                      </span>
                     </div>
                   </div>
                 )}

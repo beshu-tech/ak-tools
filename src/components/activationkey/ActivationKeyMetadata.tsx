@@ -50,7 +50,11 @@ const DateField: React.FC<DateFieldProps> = ({
               {value ? format(value, "d MMM yyyy") : fallbackText}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align={align}>
+          <PopoverContent
+            className="w-auto p-0"
+            align={align}
+            aria-label={`Choose the ${label.toLowerCase()} date`}
+          >
             <Calendar
               mode="single"
               selected={value}

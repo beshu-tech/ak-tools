@@ -15,11 +15,11 @@ export function TemplatePicker({ templates, onPick }: TemplatePickerProps) {
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <FileText className="h-4 w-4" />
+          <FileText aria-hidden="true" className="h-4 w-4" />
           Use template
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-72 p-0" align="start" aria-label="Select a template">
         <div className="p-2 border-b">
           <p className="text-sm font-medium">Select a template</p>
         </div>
@@ -46,12 +46,12 @@ export function TemplatePicker({ templates, onPick }: TemplatePickerProps) {
           )}
         </div>
         <div className="p-2 border-t">
-          <Link to="/templates">
-            <Button variant="ghost" size="sm" className="w-full gap-2">
-              <Plus className="h-4 w-4" />
+          <Button asChild variant="ghost" size="sm" className="w-full gap-2">
+            <Link to="/templates">
+              <Plus aria-hidden="true" className="h-4 w-4" />
               Manage templates
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

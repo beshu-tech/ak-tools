@@ -80,6 +80,23 @@ describe("ActivationKeyMetadataDisplay", () => {
     expect(onExpiryChange.mock.calls[0][0].getDate()).toBe(15);
   });
 
+  it("names each date popover after the date it edits", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActivationKeyMetadataDisplay
+        metadata={meta}
+        issuedDate={new Date(2026, 0, 10)}
+        expiryDate={new Date(2026, 5, 20)}
+        onIssuedChange={() => {}}
+        onExpiryChange={() => {}}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "20 Jun 2026" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Choose the expiry date" }),
+    ).toBeInTheDocument();
+  });
+
   it("lets the user pick a new issued date", async () => {
     const user = userEvent.setup();
     const onIssuedChange = vi.fn();

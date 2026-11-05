@@ -5,6 +5,8 @@ import { Button } from "../ui/button";
 
 interface SigningStatusProps {
   status: Status;
+  /** Lets the disabled Generate button point at this text as its description. */
+  id?: string;
   /** Puts the editor back to the claims of the current key. */
   onRevert: () => void;
 }
@@ -19,7 +21,7 @@ const MESSAGES: Record<Status, string> = {
 };
 
 /** One line under the Generate button that says why it is enabled or disabled. */
-export function SigningStatus({ status, onRevert }: SigningStatusProps) {
+export function SigningStatus({ status, id, onRevert }: SigningStatusProps) {
   const tone =
     status === "up-to-date"
       ? "text-muted-foreground"
@@ -35,12 +37,13 @@ export function SigningStatus({ status, onRevert }: SigningStatusProps) {
 
   return (
     <div
+      id={id}
       role="status"
       aria-live="polite"
       data-status={status}
       className={`flex items-start gap-2 text-sm ${tone}`}
     >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+      <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
       <p className="flex-1">
         {MESSAGES[status]}
         {status === "no-key" && (
@@ -54,7 +57,7 @@ export function SigningStatus({ status, onRevert }: SigningStatusProps) {
       </p>
       {(status === "edited" || status === "invalid-json") && (
         <Button variant="ghost" size="sm" className="-my-1 gap-1.5" onClick={onRevert}>
-          <Undo2 className="h-3.5 w-3.5" />
+          <Undo2 aria-hidden="true" className="h-3.5 w-3.5" />
           Revert
         </Button>
       )}

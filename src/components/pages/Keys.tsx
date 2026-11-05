@@ -225,6 +225,7 @@ const Keys = () => {
               className="hidden"
               id="import-key"
               tabIndex={-1}
+              aria-label="Key pair ZIP file"
             />
             <TooltipProvider>
               <Tooltip delayDuration={0}>

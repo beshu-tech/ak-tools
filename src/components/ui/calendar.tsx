@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
 import { DayPicker, useDayPicker, type MonthCaptionProps } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
@@ -92,6 +93,19 @@ function Calendar({
         onMonthChange?.(next);
       }}
       navLayout="around"
+      // The name starts with the visible day number, so voice control ("click 26") finds the button
+      // (WCAG 2.5.3 Label in Name). The library default, "Sunday, June 26th", does not match "26".
+      labels={{
+        labelDayButton: (date, modifiers) =>
+          [
+            format(date, "d MMMM yyyy, EEEE"),
+            modifiers.today ? "today" : null,
+            modifiers.selected ? "selected" : null,
+          ]
+            .filter(Boolean)
+            .join(", "),
+        ...props.labels,
+      }}
       classNames={{
         months: "relative flex flex-col sm:flex-row gap-4",
         month: "grid grid-cols-[auto_1fr_auto] items-center gap-y-4",

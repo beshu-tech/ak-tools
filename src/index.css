@@ -107,7 +107,8 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 195 25% 85%;
-    --input: 195 25% 85%;
+    /* Control outlines must reach 3:1 against the page and the cards (WCAG 1.4.11): darker than --border. */
+    --input: 197 18% 47%;
     --ring: 193 100% 35%;
 
     --brand-end: 163 100% 28%;
@@ -141,7 +142,7 @@
     --destructive-foreground: 0 0% 100%;
 
     --border: 200 42% 19%;
-    --input: 200 42% 19%;
+    --input: 197 25% 44%;
     --ring: 191 100% 50%;
 
     --brand-end: 157 100% 50%;
@@ -183,5 +184,34 @@
     background-image:
       radial-gradient(circle at 15% 0%, hsl(var(--primary) / 0.1) 0%, transparent 45%),
       radial-gradient(circle at 85% 100%, hsl(var(--brand-end) / 0.07) 0%, transparent 45%);
+  }
+}
+
+/* Keep keyboard focus clear of the sticky header when scrolled into view (WCAG 2.4.11). */
+html {
+  scroll-padding-top: 4.5rem;
+}
+
+/* Honour "reduce motion": no slides, zooms or fades; state changes are instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Windows high-contrast mode: keep the focus indicator and gradient buttons visible. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  button,
+  [role="button"] {
+    border: 1px solid ButtonText;
   }
 }

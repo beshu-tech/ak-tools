@@ -30,13 +30,15 @@ export function TemplateSwitcher({
       <PopoverTrigger asChild>
         <Button variant="outline" className="flex-1 justify-between h-10">
           <span className="truncate">{currentTemplateName || "No template"}</span>
-          <div className="flex items-center gap-1.5">
-            {isDirty && <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />}
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </div>
+          <span className="flex items-center gap-1.5">
+            {isDirty && (
+              <Circle aria-hidden="true" className="h-2 w-2 fill-orange-500 text-orange-500" />
+            )}
+            <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
+          </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-72 p-0" align="start" aria-label="Switch template">
         <div className="p-2 border-b">
           <p className="text-sm font-medium">Switch Template</p>
           {isDirty && (
@@ -51,13 +53,16 @@ export function TemplateSwitcher({
               <button
                 key={template.id}
                 onClick={() => onSwitch(template.id)}
+                aria-current={template.id === sourceTemplateId ? "true" : undefined}
                 className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
                   template.id === sourceTemplateId ? "bg-secondary/30" : ""
                 }`}
               >
                 <div className="text-sm font-medium flex items-center gap-2">
                   {template.name}
-                  {template.id === sourceTemplateId && <Check className="h-3 w-3 text-primary" />}
+                  {template.id === sourceTemplateId && (
+                    <Check aria-hidden="true" className="h-3 w-3 text-primary" />
+                  )}
                 </div>
                 {template.description && (
                   <div className="text-xs text-muted-foreground truncate">
@@ -73,12 +78,12 @@ export function TemplateSwitcher({
           )}
         </div>
         <div className="p-2 border-t">
-          <Link to="/templates">
-            <Button variant="ghost" size="sm" className="w-full gap-2">
-              <Plus className="h-4 w-4" />
+          <Button asChild variant="ghost" size="sm" className="w-full gap-2">
+            <Link to="/templates">
+              <Plus aria-hidden="true" className="h-4 w-4" />
               Manage templates
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </PopoverContent>
     </Popover>
