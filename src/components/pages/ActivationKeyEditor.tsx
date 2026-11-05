@@ -1,24 +1,11 @@
 import { useReducer, useEffect, useCallback, useState, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
 import { Card, CardContent } from "../ui/card";
 import { Textarea } from "../ui/textarea";
-import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import Editor from "@monaco-editor/react";
 import { Button } from "../ui/button";
-import {
-  X,
-  Check,
-  Copy,
-  FileText,
-  Plus,
-  Save,
-  AlertTriangle,
-  Key,
-  ChevronDown,
-  Circle,
-} from "lucide-react";
-import { Algorithm, SUPPORTED_ALGORITHMS, ValidationResult } from "../../types/activationKey";
+import { X, Check, Copy, FileText, Key } from "lucide-react";
+import { Algorithm, SUPPORTED_ALGORITHMS } from "../../types/activationKey";
 import {
   getJwtMetadata,
   getPayloadJson,
@@ -28,104 +15,25 @@ import {
 } from "../../utils/activationKey";
 import { ActivationKeyMetadataDisplay } from "../activationkey/ActivationKeyMetadata";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { PageHeader } from "../ui/page-header";
+import { SaveTemplatePopover } from "../activationkey/SaveTemplatePopover";
+import { TemplatePicker } from "../activationkey/TemplatePicker";
+import { TemplateSwitcher } from "../activationkey/TemplateSwitcher";
+import { useSaveTemplate } from "../../hooks/use-save-template";
 import { useTheme } from "../../hooks/use-theme";
 import { useKeyPairs } from "../../hooks/use-key-pairs";
 import { useTemplates } from "../../hooks/use-templates";
 import { useToast } from "../../hooks/use-toast";
 import { PENDING_TEMPLATE_KEY } from "./Templates";
+import { editorReducer, initialState } from "./editorReducer";
+import { MONACO_OPTIONS } from "./monacoOptions";
 import "./ActivationKeyEditor.css";
-
-// State type for the editor
-interface EditorState {
-  inputValue: string;
-  jwt: string;
-  editorValue: string;
-  algorithm: Algorithm;
-  expiryDate: Date | undefined;
-  issuedDate: Date | undefined;
-  selectedKeyId: string;
-  validation: ValidationResult | null;
-  showCopied: boolean;
-}
-
-// Action types for the reducer
-type EditorAction =
-  | { type: "SET_INPUT"; payload: string }
-  | {
-      type: "SET_JWT";
-      payload: {
-        jwt: string;
-        editorValue: string;
-        algorithm?: Algorithm;
-        expiryDate?: Date;
-        issuedDate?: Date;
-      };
-    }
-  | { type: "SET_EDITOR_VALUE"; payload: string }
-  | { type: "SET_ALGORITHM"; payload: Algorithm }
-  | { type: "SET_EXPIRY_DATE"; payload: Date | undefined }
-  | { type: "SET_ISSUED_DATE"; payload: Date | undefined }
-  | { type: "SET_SELECTED_KEY"; payload: string }
-  | { type: "SET_VALIDATION"; payload: ValidationResult | null }
-  | { type: "SHOW_COPIED" }
-  | { type: "HIDE_COPIED" }
-  | { type: "CLEAR" };
-
-const initialState: EditorState = {
-  inputValue: "",
-  jwt: "",
-  editorValue: "{}",
-  algorithm: "ES512",
-  expiryDate: undefined,
-  issuedDate: undefined,
-  selectedKeyId: "",
-  validation: null,
-  showCopied: false,
-};
-
-function editorReducer(state: EditorState, action: EditorAction): EditorState {
-  switch (action.type) {
-    case "SET_INPUT":
-      return { ...state, inputValue: action.payload };
-    case "SET_JWT":
-      return {
-        ...state,
-        jwt: action.payload.jwt,
-        editorValue: action.payload.editorValue,
-        algorithm: action.payload.algorithm ?? state.algorithm,
-        expiryDate: action.payload.expiryDate ?? state.expiryDate,
-        issuedDate: action.payload.issuedDate ?? state.issuedDate,
-      };
-    case "SET_EDITOR_VALUE":
-      return { ...state, editorValue: action.payload };
-    case "SET_ALGORITHM":
-      return { ...state, algorithm: action.payload };
-    case "SET_EXPIRY_DATE":
-      return { ...state, expiryDate: action.payload };
-    case "SET_ISSUED_DATE":
-      return { ...state, issuedDate: action.payload };
-    case "SET_SELECTED_KEY":
-      return { ...state, selectedKeyId: action.payload };
-    case "SET_VALIDATION":
-      return { ...state, validation: action.payload };
-    case "SHOW_COPIED":
-      return { ...state, showCopied: true };
-    case "HIDE_COPIED":
-      return { ...state, showCopied: false };
-    case "CLEAR":
-      return { ...initialState, selectedKeyId: state.selectedKeyId };
-    default:
-      return state;
-  }
-}
 
 const ActivationKeyEditor = () => {
   const { theme } = useTheme();
   const { keyPairs, getKeyPairById } = useKeyPairs();
   const { templates, addTemplate, updateTemplate, getTemplateById } = useTemplates();
-  const { error: showError, success: showSuccess, confirm } = useToast();
+  const { error: showError, confirm } = useToast();
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
   // Track source template (when loaded from a template)
@@ -139,13 +47,6 @@ const ActivationKeyEditor = () => {
 
   // Template switcher state
   const [templateSwitcherOpen, setTemplateSwitcherOpen] = useState(false);
-
-  // Save as template state
-  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [templateDescription, setTemplateDescription] = useState("");
-  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
-  const [saveAsExpired, setSaveAsExpired] = useState(false);
 
   const {
     inputValue,
@@ -364,167 +265,19 @@ const ActivationKeyEditor = () => {
     [isDirty, confirm, getTemplateById, handleInputChange],
   );
 
-  // Get current template name
-  const currentTemplateName = sourceTemplateId ? getTemplateById(sourceTemplateId)?.name : null;
-
-  // Handle opening save template popover
-  const handleSaveTemplateClick = useCallback(() => {
-    const notExpired = !isJwtExpired();
-    setShowExpiryWarning(notExpired);
-    setSaveAsExpired(notExpired); // Default to save as expired if not already expired
-    setSaveTemplateOpen(true);
-
-    // Pre-fill with source template info if loaded from a template
-    if (sourceTemplateId) {
-      const sourceTemplate = getTemplateById(sourceTemplateId);
-      if (sourceTemplate) {
-        setTemplateName(sourceTemplate.name);
-        setTemplateDescription(sourceTemplate.description || "");
-        return;
-      }
-    }
-
-    setTemplateName("");
-    setTemplateDescription("");
-  }, [isJwtExpired, sourceTemplateId, getTemplateById]);
-
-  // Find existing template by name
-  const findTemplateByName = useCallback(
-    (name: string) => {
-      return templates.find((t) => t.name.toLowerCase() === name.toLowerCase());
-    },
-    [templates],
-  );
-
-  // Generate activation key with modified expiry for template saving
-  const getActivationKeyForTemplate = useCallback(async (): Promise<string | null> => {
-    if (!saveAsExpired || isJwtExpired()) {
-      return jwt; // Return current AK as-is
-    }
-
-    // Need to sign a new AK with expiry 24h before now
-    const selectedKey = getKeyPairById(selectedKeyId);
-    if (!selectedKey) {
-      showError("No signing key selected");
-      return null;
-    }
-
-    let payload;
-    try {
-      payload = JSON.parse(editorValue);
-    } catch {
-      showError("Invalid JSON payload");
-      return null;
-    }
-
-    // Set expiry to 24 hours ago
-    const expiredDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    // Ensure exp is not before iat (issued at) if present
-    const iatTimestamp = payload.iat;
-    if (iatTimestamp && expiredDate.getTime() / 1000 < iatTimestamp) {
-      // Set exp to 1 second after iat to maintain valid temporal order
-      payload.exp = iatTimestamp + 1;
-    } else {
-      payload.exp = toEpochSeconds(expiredDate);
-    }
-
-    try {
-      const expiredToken = await signJWT(
-        payload,
-        algorithm,
-        selectedKey,
-        new Date(payload.exp * 1000),
-      );
-      return expiredToken;
-    } catch (error) {
-      console.error("Error generating expired AK:", error);
-      showError("Failed to generate expired activation key");
-      return null;
-    }
-  }, [
-    saveAsExpired,
-    isJwtExpired,
+  const saveTemplate = useSaveTemplate({
     jwt,
-    selectedKeyId,
     editorValue,
     algorithm,
-    getKeyPairById,
-    showError,
-  ]);
-
-  // Handle saving template
-  const handleSaveTemplate = useCallback(async () => {
-    if (!templateName.trim()) {
-      showError("Please enter a template name");
-      return;
-    }
-
-    if (!jwt) {
-      showError("No activation key to save");
-      return;
-    }
-
-    const trimmedName = templateName.trim();
-    const existingTemplate = findTemplateByName(trimmedName);
-    const isOverwrite = existingTemplate && existingTemplate.id === sourceTemplateId;
-    const isNameConflict = existingTemplate && existingTemplate.id !== sourceTemplateId;
-
-    // If name conflicts with a different template, warn and ask
-    if (isNameConflict) {
-      const confirmed = await confirm(
-        `A template named "${trimmedName}" already exists. Do you want to overwrite it?`,
-      );
-      if (!confirmed) return;
-    }
-
-    // If overwriting source template, ask for confirmation
-    if (isOverwrite) {
-      const confirmed = await confirm(
-        `Do you want to update the existing template "${trimmedName}"?`,
-      );
-      if (!confirmed) return;
-    }
-
-    // Get the activation key (possibly with modified expiry)
-    const activationKeyToSave = await getActivationKeyForTemplate();
-    if (!activationKeyToSave) return;
-
-    // Save or update
-    if (existingTemplate) {
-      updateTemplate(existingTemplate.id, {
-        name: trimmedName,
-        description: templateDescription.trim() || undefined,
-        activationKey: activationKeyToSave,
-      });
-      showSuccess("Template updated successfully");
-    } else {
-      addTemplate({
-        name: trimmedName,
-        description: templateDescription.trim() || undefined,
-        activationKey: activationKeyToSave,
-      });
-      showSuccess("Template saved successfully");
-    }
-
-    setSaveTemplateOpen(false);
-    setTemplateName("");
-    setTemplateDescription("");
-    setShowExpiryWarning(false);
-    setSaveAsExpired(false);
-  }, [
-    templateName,
-    templateDescription,
-    jwt,
+    selectedKeyId,
     sourceTemplateId,
-    findTemplateByName,
-    getActivationKeyForTemplate,
-    updateTemplate,
+    isJwtExpired,
+    templates,
+    getTemplateById,
     addTemplate,
-    showError,
-    showSuccess,
-    confirm,
-  ]);
+    updateTemplate,
+    getKeyPairById,
+  });
 
   return (
     <div className="ak-editor-container">
@@ -542,52 +295,13 @@ const ActivationKeyEditor = () => {
             className="ak-input"
           />
           <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <FileText className="h-4 w-4" />
-                  Use template
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0" align="start">
-                <div className="p-2 border-b">
-                  <p className="text-sm font-medium">Select a template</p>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {templates.length > 0 ? (
-                    templates.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => {
-                          setSourceTemplateId(template.id);
-                          handleInputChange(template.activationKey);
-                        }}
-                        className="w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors"
-                      >
-                        <div className="text-sm font-medium">{template.name}</div>
-                        {template.description && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {template.description}
-                          </div>
-                        )}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                      No templates yet
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 border-t">
-                  <Link to="/templates">
-                    <Button variant="ghost" size="sm" className="w-full gap-2">
-                      <Plus className="h-4 w-4" />
-                      Manage templates
-                    </Button>
-                  </Link>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <TemplatePicker
+              templates={templates}
+              onPick={(template) => {
+                setSourceTemplateId(template.id);
+                handleInputChange(template.activationKey);
+              }}
+            />
           </div>
         </div>
       ) : (
@@ -604,30 +318,7 @@ const ActivationKeyEditor = () => {
                   onChange={(value) =>
                     dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
                   }
-                  options={{
-                    minimap: { enabled: false },
-                    formatOnPaste: true,
-                    formatOnType: true,
-                    automaticLayout: true,
-                    scrollBeyondLastLine: false,
-                    tabSize: 2,
-                    fontSize: 12,
-                    lineNumbers: "off",
-                    folding: false,
-                    glyphMargin: false,
-                    lineDecorationsWidth: 0,
-                    lineNumbersMinChars: 0,
-                    overviewRulerBorder: false,
-                    overviewRulerLanes: 0,
-                    hideCursorInOverviewRuler: true,
-                    scrollbar: {
-                      vertical: "auto",
-                      horizontal: "auto",
-                      verticalScrollbarSize: 10,
-                      horizontalScrollbarSize: 10,
-                      alwaysConsumeMouseWheel: false,
-                    },
-                  }}
+                  options={MONACO_OPTIONS}
                   theme={theme === "dark" ? "vs-dark" : "light"}
                 />
               </div>
@@ -656,66 +347,14 @@ const ActivationKeyEditor = () => {
                         )}
                       </div>
                     )}
-                    <Popover open={templateSwitcherOpen} onOpenChange={setTemplateSwitcherOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="flex-1 justify-between h-10">
-                          <span className="truncate">{currentTemplateName || "No template"}</span>
-                          <div className="flex items-center gap-1.5">
-                            {isDirty && (
-                              <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />
-                            )}
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="start">
-                        <div className="p-2 border-b">
-                          <p className="text-sm font-medium">Switch Template</p>
-                          {isDirty && (
-                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                              Unsaved changes will be lost
-                            </p>
-                          )}
-                        </div>
-                        <div className="max-h-64 overflow-y-auto">
-                          {templates.length > 0 ? (
-                            templates.map((template) => (
-                              <button
-                                key={template.id}
-                                onClick={() => handleSwitchTemplate(template.id)}
-                                className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
-                                  template.id === sourceTemplateId ? "bg-secondary/30" : ""
-                                }`}
-                              >
-                                <div className="text-sm font-medium flex items-center gap-2">
-                                  {template.name}
-                                  {template.id === sourceTemplateId && (
-                                    <Check className="h-3 w-3 text-primary" />
-                                  )}
-                                </div>
-                                {template.description && (
-                                  <div className="text-xs text-muted-foreground truncate">
-                                    {template.description}
-                                  </div>
-                                )}
-                              </button>
-                            ))
-                          ) : (
-                            <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                              No templates yet
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-2 border-t">
-                          <Link to="/templates">
-                            <Button variant="ghost" size="sm" className="w-full gap-2">
-                              <Plus className="h-4 w-4" />
-                              Manage templates
-                            </Button>
-                          </Link>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <TemplateSwitcher
+                      templates={templates}
+                      sourceTemplateId={sourceTemplateId}
+                      isDirty={isDirty}
+                      open={templateSwitcherOpen}
+                      onOpenChange={setTemplateSwitcherOpen}
+                      onSwitch={handleSwitchTemplate}
+                    />
                   </div>
                 </div>
 
@@ -765,97 +404,7 @@ const ActivationKeyEditor = () => {
                     Generate Activation Key
                   </Button>
 
-                  <Popover open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={handleSaveTemplateClick}
-                      >
-                        <Save className="h-4 w-4" />
-                        Save as template
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80" align="start">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium text-sm">Save as Template</h4>
-                          <p className="text-xs text-muted-foreground">
-                            Save this activation key as a reusable template.
-                          </p>
-                        </div>
-
-                        {showExpiryWarning && (
-                          <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md space-y-3">
-                            <div className="flex items-start gap-2">
-                              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
-                              <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                                <strong>Notice:</strong> This activation key is not expired. For
-                                safety reasons, templates should contain expired keys only.
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 pl-6">
-                              <input
-                                type="checkbox"
-                                id="save-as-expired"
-                                checked={saveAsExpired}
-                                onChange={(e) => setSaveAsExpired(e.target.checked)}
-                                className="h-4 w-4 rounded-sm border-yellow-600 text-yellow-600 focus:ring-yellow-500"
-                              />
-                              <label
-                                htmlFor="save-as-expired"
-                                className="text-xs text-yellow-800 dark:text-yellow-200 cursor-pointer"
-                              >
-                                Save as expired (set expiry to 24h ago)
-                              </label>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="space-y-2">
-                          <Label htmlFor="template-name" className="text-sm">
-                            Name *
-                          </Label>
-                          <Input
-                            id="template-name"
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
-                            placeholder="e.g., ReadonlyREST Enterprise"
-                            autoFocus
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="template-description" className="text-sm">
-                            Description (optional)
-                          </Label>
-                          <Input
-                            id="template-description"
-                            value={templateDescription}
-                            onChange={(e) => setTemplateDescription(e.target.value)}
-                            placeholder="e.g., Template for enterprise licenses"
-                          />
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSaveTemplateOpen(false)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button size="sm" onClick={handleSaveTemplate}>
-                            {sourceTemplateId &&
-                            findTemplateByName(templateName)?.id === sourceTemplateId
-                              ? "Update Template"
-                              : "Save Template"}
-                          </Button>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <SaveTemplatePopover saveTemplate={saveTemplate} />
                 </div>
 
                 {jwt && (
