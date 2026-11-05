@@ -20,7 +20,7 @@ export const getJwtMetadata = (token: string): ActivationKeyMetadata | null => {
       issuedAt: decoded.iat ? new Date(decoded.iat * 1000) : null,
       expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : null,
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -92,7 +92,7 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
         details: `Expected type "JWT" but found "${header.typ}".`
       };
     }
-  } catch (e) {
+  } catch {
     return {
       isValid: false,
       errorType: 'header',
@@ -105,7 +105,7 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
   try {
     const payloadJson = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
     JSON.parse(payloadJson);
-  } catch (e) {
+  } catch {
     return {
       isValid: false,
       errorType: 'payload',
@@ -180,7 +180,7 @@ export const decodeJWT = async (token: string ): Promise<string> => {
       null,
       2
     );
-  } catch (e) {
+  } catch {
     return '{}';
   }
 };
@@ -194,7 +194,7 @@ const checkPrivateKey = async (key: string): Promise<string> => {
 };
 
 export const signJWT = async (
-  payload: any,
+  payload: jose.JWTPayload,
   algorithm: Algorithm,
   keyPair: KeyPair,
   expiryDate: Date

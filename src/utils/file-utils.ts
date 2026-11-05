@@ -27,9 +27,6 @@ export const importKeyPairFromZip = async (file: File): Promise<{ name: string, 
   const zip = new JSZip();
   const contents = await zip.loadAsync(file);
   
-  let publicKey = '';
-  let privateKey = '';
-  
   // Get name from zip filename (remove .zip extension)
   const name = file.name.replace(/\.zip$/, '');
   
@@ -41,8 +38,8 @@ export const importKeyPairFromZip = async (file: File): Promise<{ name: string, 
     throw new Error('Invalid zip file format. Expected public_key.pem and private_key.pem files.');
   }
   
-  publicKey = await publicKeyFile.async('string');
-  privateKey = await privateKeyFile.async('string');
+  const publicKey = await publicKeyFile.async('string');
+  const privateKey = await privateKeyFile.async('string');
   
   return { name, publicKey, privateKey };
 }; 

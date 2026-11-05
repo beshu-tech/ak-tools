@@ -166,7 +166,7 @@ const Templates = () => {
     if (!validation.touched || !validation.error || validation.error.isValid) return null;
     return (
       <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+        <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
         <div className="text-sm">
           <p className="font-medium text-destructive">{validation.error.message}</p>
           {validation.error.details && (
@@ -344,7 +344,7 @@ const Templates = () => {
                             {!meta.isExpired && (
                               <Tooltip>
                                 <TooltipTrigger>
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-sm">
                                     <Info className="h-3 w-3" />
                                     Active
                                   </span>

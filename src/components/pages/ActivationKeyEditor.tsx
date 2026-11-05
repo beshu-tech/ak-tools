@@ -109,7 +109,7 @@ const ActivationKeyEditor = () => {
   const originalEditorValueRef = useRef<string>('{}');
 
   // Ref to store handleInputChange to avoid effect dependency issues
-  const handleInputChangeRef = useRef<(value: string) => Promise<void>>();
+  const handleInputChangeRef = useRef<((value: string) => Promise<void>) | undefined>(undefined);
 
   // Template switcher state
   const [templateSwitcherOpen, setTemplateSwitcherOpen] = useState(false);
@@ -736,7 +736,7 @@ const ActivationKeyEditor = () => {
                         {showExpiryWarning && (
                           <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-md space-y-3">
                             <div className="flex items-start gap-2">
-                              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
                               <div className="text-xs text-yellow-800 dark:text-yellow-200">
                                 <strong>Notice:</strong> This activation key is not expired.
                                 For safety reasons, templates should contain expired keys only.
@@ -748,7 +748,7 @@ const ActivationKeyEditor = () => {
                                 id="save-as-expired"
                                 checked={saveAsExpired}
                                 onChange={(e) => setSaveAsExpired(e.target.checked)}
-                                className="h-4 w-4 rounded border-yellow-600 text-yellow-600 focus:ring-yellow-500"
+                                className="h-4 w-4 rounded-sm border-yellow-600 text-yellow-600 focus:ring-yellow-500"
                               />
                               <label htmlFor="save-as-expired" className="text-xs text-yellow-800 dark:text-yellow-200 cursor-pointer">
                                 Save as expired (set expiry to 24h ago)

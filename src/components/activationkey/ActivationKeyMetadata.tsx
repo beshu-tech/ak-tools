@@ -50,7 +50,7 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
                   mode="single"
                   selected={issuedDate}
                   onSelect={onIssuedChange}
-                  initialFocus
+                  autoFocus
                 />
               </PopoverContent>
             </Popover>
@@ -78,7 +78,7 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
                   mode="single"
                   selected={expiryDate}
                   onSelect={onExpiryChange}
-                  initialFocus
+                  autoFocus
                 />
               </PopoverContent>
             </Popover>

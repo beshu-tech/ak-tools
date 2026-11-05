@@ -1,3 +1,5 @@
+@reference "../../index.css";
+
 .ak-editor-container {
   @apply p-6 max-w-7xl mx-auto;
 }
