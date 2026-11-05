@@ -1,4 +1,4 @@
-import { KeyPair } from '../types/activationKey';
+import { KeyPair } from "../types/activationKey";
 
 // Validation constants
 const MIN_NAME_LENGTH = 2;
@@ -18,14 +18,14 @@ export function validatePrivateKeyFormat(key: string): string | null {
   const trimmed = key.trim();
 
   if (!trimmed) {
-    return 'Private key is required';
+    return "Private key is required";
   }
 
-  if (trimmed.includes('-----BEGIN EC PRIVATE KEY-----')) {
-    return 'SEC1 private key format detected. Please convert to PKCS#8 format using:\nopenssl pkcs8 -topk8 -nocrypt -in sec1-key.pem -out pkcs8-key.pem';
+  if (trimmed.includes("-----BEGIN EC PRIVATE KEY-----")) {
+    return "SEC1 private key format detected. Please convert to PKCS#8 format using:\nopenssl pkcs8 -topk8 -nocrypt -in sec1-key.pem -out pkcs8-key.pem";
   }
 
-  if (!trimmed.includes('-----BEGIN PRIVATE KEY-----')) {
+  if (!trimmed.includes("-----BEGIN PRIVATE KEY-----")) {
     return "Invalid private key format. Key must be in PKCS#8 PEM format (starting with '-----BEGIN PRIVATE KEY-----')";
   }
 
@@ -40,10 +40,10 @@ export function validatePublicKeyFormat(key: string): string | null {
   const trimmed = key.trim();
 
   if (!trimmed) {
-    return 'Public key is required';
+    return "Public key is required";
   }
 
-  if (!trimmed.includes('-----BEGIN PUBLIC KEY-----')) {
+  if (!trimmed.includes("-----BEGIN PUBLIC KEY-----")) {
     return "Invalid public key format. Key must start with '-----BEGIN PUBLIC KEY-----'";
   }
 
@@ -58,7 +58,7 @@ export function validateKeyPairName(name: string): string | null {
   const trimmed = name.trim();
 
   if (!trimmed) {
-    return 'Name is required';
+    return "Name is required";
   }
 
   if (trimmed.length < MIN_NAME_LENGTH) {
@@ -79,17 +79,17 @@ export function validateKeyPairName(name: string): string | null {
 export function validateKeyPair(keyPair: Partial<KeyPair>): KeyPairValidationErrors {
   const errors: KeyPairValidationErrors = {};
 
-  const nameError = validateKeyPairName(keyPair.name ?? '');
+  const nameError = validateKeyPairName(keyPair.name ?? "");
   if (nameError) {
     errors.name = nameError;
   }
 
-  const publicKeyError = validatePublicKeyFormat(keyPair.publicKey ?? '');
+  const publicKeyError = validatePublicKeyFormat(keyPair.publicKey ?? "");
   if (publicKeyError) {
     errors.publicKey = publicKeyError;
   }
 
-  const privateKeyError = validatePrivateKeyFormat(keyPair.privateKey ?? '');
+  const privateKeyError = validatePrivateKeyFormat(keyPair.privateKey ?? "");
   if (privateKeyError) {
     errors.privateKey = privateKeyError;
   }
@@ -109,5 +109,5 @@ export function hasValidationErrors(errors: KeyPairValidationErrors): boolean {
  */
 export function getFirstError(errors: KeyPairValidationErrors): string | null {
   const firstKey = Object.keys(errors)[0] as keyof KeyPairValidationErrors | undefined;
-  return firstKey ? errors[firstKey] ?? null : null;
+  return firstKey ? (errors[firstKey] ?? null) : null;
 }

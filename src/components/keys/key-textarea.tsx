@@ -1,6 +1,6 @@
-import React from 'react';
-import { Textarea } from '../ui/textarea';
-import './key-pair-form.css';
+import React from "react";
+import { Textarea } from "../ui/textarea";
+import "./key-pair-form.css";
 
 interface KeyTextareaProps {
   id: string;
@@ -9,12 +9,7 @@ interface KeyTextareaProps {
   placeholder: string;
 }
 
-export const KeyTextarea: React.FC<KeyTextareaProps> = ({
-  id,
-  value,
-  onChange,
-  placeholder
-}) => {
+export const KeyTextarea: React.FC<KeyTextareaProps> = ({ id, value, onChange, placeholder }) => {
   return (
     <Textarea
       id={id}
@@ -24,4 +19,4 @@ export const KeyTextarea: React.FC<KeyTextareaProps> = ({
       className="key-textarea"
     />
   );
-}; 
+};

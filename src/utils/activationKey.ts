@@ -1,13 +1,12 @@
-import * as jose from 'jose';
-import { formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { ActivationKeyMetadata, KeyPair, Algorithm } from '../types/activationKey';
-import { SignJWT } from 'jose';
-import { generateKeyPair } from 'jose';
-
+import * as jose from "jose";
+import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
+import { ActivationKeyMetadata, KeyPair, Algorithm } from "../types/activationKey";
+import { SignJWT } from "jose";
+import { generateKeyPair } from "jose";
 
 // Polyfill Buffer for browser environments
-import { Buffer } from 'buffer';
-const globalAny = typeof window !== 'undefined' ? window : global;
+import { Buffer } from "buffer";
+const globalAny = typeof window !== "undefined" ? window : global;
 if (!globalAny.Buffer) {
   globalAny.Buffer = Buffer;
 }
@@ -27,7 +26,7 @@ export const getJwtMetadata = (token: string): ActivationKeyMetadata | null => {
 
 export interface AkValidationError {
   isValid: false;
-  errorType: 'empty' | 'format' | 'header' | 'payload' | 'structure';
+  errorType: "empty" | "format" | "header" | "payload" | "structure";
   message: string;
   details?: string;
 }
@@ -49,20 +48,20 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
   if (!trimmedToken) {
     return {
       isValid: false,
-      errorType: 'empty',
-      message: 'Activation key is required',
-      details: 'Please paste a valid activation key in the input field.'
+      errorType: "empty",
+      message: "Activation key is required",
+      details: "Please paste a valid activation key in the input field.",
     };
   }
 
   // Check basic structure (should have 3 parts separated by dots)
-  const parts = trimmedToken.split('.');
+  const parts = trimmedToken.split(".");
   if (parts.length !== 3) {
     return {
       isValid: false,
-      errorType: 'structure',
-      message: 'Invalid activation key structure',
-      details: `Expected 3 parts separated by dots (header.payload.signature), but found ${parts.length} part${parts.length === 1 ? '' : 's'}. Make sure you copied the complete activation key.`
+      errorType: "structure",
+      message: "Invalid activation key structure",
+      details: `Expected 3 parts separated by dots (header.payload.signature), but found ${parts.length} part${parts.length === 1 ? "" : "s"}. Make sure you copied the complete activation key.`,
     };
   }
 
@@ -71,46 +70,49 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
 
   // Validate header
   try {
-    const headerJson = atob(headerPart.replace(/-/g, '+').replace(/_/g, '/'));
+    const headerJson = atob(headerPart.replace(/-/g, "+").replace(/_/g, "/"));
     const header = JSON.parse(headerJson);
 
     if (!header.alg) {
       return {
         isValid: false,
-        errorType: 'header',
-        message: 'Missing algorithm in header',
-        details: 'The activation key header is missing the "alg" (algorithm) field. This is required for signature verification.'
+        errorType: "header",
+        message: "Missing algorithm in header",
+        details:
+          'The activation key header is missing the "alg" (algorithm) field. This is required for signature verification.',
       };
     }
 
     // Validate typ if present - it should be 'JWT' or absent
-    if (header.typ !== undefined && header.typ !== 'JWT') {
+    if (header.typ !== undefined && header.typ !== "JWT") {
       return {
         isValid: false,
-        errorType: 'header',
-        message: 'Invalid token type in header',
-        details: `Expected type "JWT" but found "${header.typ}".`
+        errorType: "header",
+        message: "Invalid token type in header",
+        details: `Expected type "JWT" but found "${header.typ}".`,
       };
     }
   } catch {
     return {
       isValid: false,
-      errorType: 'header',
-      message: 'Invalid activation key header',
-      details: 'The header section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.'
+      errorType: "header",
+      message: "Invalid activation key header",
+      details:
+        "The header section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.",
     };
   }
 
   // Validate payload
   try {
-    const payloadJson = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
+    const payloadJson = atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"));
     JSON.parse(payloadJson);
   } catch {
     return {
       isValid: false,
-      errorType: 'payload',
-      message: 'Invalid activation key payload',
-      details: 'The payload section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.'
+      errorType: "payload",
+      message: "Invalid activation key payload",
+      details:
+        "The payload section could not be decoded. It should be valid base64url-encoded JSON. The activation key may be corrupted or truncated.",
     };
   }
 
@@ -118,9 +120,10 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
   if (!signaturePart) {
     return {
       isValid: false,
-      errorType: 'structure',
-      message: 'Missing signature',
-      details: 'The signature section is missing. Make sure you copied the complete activation key.'
+      errorType: "structure",
+      message: "Missing signature",
+      details:
+        "The signature section is missing. Make sure you copied the complete activation key.",
     };
   }
 
@@ -135,20 +138,23 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
         algorithm: header.alg ?? null,
         issuedAt: decoded.iat ? new Date(decoded.iat * 1000) : null,
         expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : null,
-      }
+      },
     };
   } catch (e) {
     return {
       isValid: false,
-      errorType: 'format',
-      message: 'Failed to parse activation key',
-      details: e instanceof Error ? e.message : 'An unexpected error occurred while parsing the activation key.'
+      errorType: "format",
+      message: "Failed to parse activation key",
+      details:
+        e instanceof Error
+          ? e.message
+          : "An unexpected error occurred while parsing the activation key.",
     };
   }
 };
 
 export const formatRelativeTime = (date: Date | null, isExpiry = false): string => {
-  if (!date) return 'Not specified';
+  if (!date) return "Not specified";
 
   const now = new Date();
   const isPast = date < now;
@@ -167,7 +173,7 @@ export const formatJwtDisplay = (token: string): string => {
   return `${token.slice(0, 10)}...${token.slice(-10)}`;
 };
 
-export const decodeJWT = async (token: string ): Promise<string> => {
+export const decodeJWT = async (token: string): Promise<string> => {
   try {
     const decoded = jose.decodeJwt(token);
     const header = jose.decodeProtectedHeader(token);
@@ -178,17 +184,19 @@ export const decodeJWT = async (token: string ): Promise<string> => {
         payload: decoded,
       },
       null,
-      2
+      2,
     );
   } catch {
-    return '{}';
+    return "{}";
   }
 };
 
 const checkPrivateKey = async (key: string): Promise<string> => {
   // Check if key is in SEC1 format
-  if (key.includes('-----BEGIN EC PRIVATE KEY-----')) {
-    throw new Error('Only PKCS8 format private keys are supported. Please convert your SEC1 key to PKCS8 format.');
+  if (key.includes("-----BEGIN EC PRIVATE KEY-----")) {
+    throw new Error(
+      "Only PKCS8 format private keys are supported. Please convert your SEC1 key to PKCS8 format.",
+    );
   }
   return key;
 };
@@ -197,16 +205,16 @@ export const signJWT = async (
   payload: jose.JWTPayload,
   algorithm: Algorithm,
   keyPair: KeyPair,
-  expiryDate: Date
+  expiryDate: Date,
 ): Promise<string> => {
   try {
     if (!keyPair?.privateKey) {
-      throw new Error('Private key is required');
+      throw new Error("Private key is required");
     }
     // Normalize the private key format if needed
     const normalizedKey = await checkPrivateKey(keyPair.privateKey);
     // Get the correct curve for the algorithm
-    const privateKey = await jose.importPKCS8(normalizedKey, 'ES512');
+    const privateKey = await jose.importPKCS8(normalizedKey, "ES512");
 
     const jwt = await new SignJWT(payload)
       .setProtectedHeader({ alg: algorithm })
@@ -217,7 +225,7 @@ export const signJWT = async (
 
     return jwt;
   } catch (error) {
-    console.error('Signing error:', error);
+    console.error("Signing error:", error);
     throw error;
   }
 };
@@ -234,67 +242,65 @@ export interface ValidationResult {
 }
 
 export const validateJWTSignature = async (
-  jwt: string, 
-  keyPair: KeyPair | undefined
+  jwt: string,
+  keyPair: KeyPair | undefined,
 ): Promise<ValidationResult> => {
   if (!keyPair) {
     return {
       isValid: false,
-      error: 'No matching key found in your list of keys',
+      error: "No matching key found in your list of keys",
       errors: {
         signature: true,
-        message: 'No matching key found in your list of keys'
-      }
+        message: "No matching key found in your list of keys",
+      },
     };
   }
 
   try {
-    const [header] = jwt.split('.');
+    const [header] = jwt.split(".");
     const decodedHeader = JSON.parse(atob(header));
     const algorithm = decodedHeader.alg;
-
 
     const normalizedKey = await checkPrivateKey(keyPair.publicKey);
     const publicKey = await jose.importSPKI(normalizedKey, algorithm);
     await jose.jwtVerify(jwt, publicKey);
 
-
     return {
       isValid: true,
       error: null,
-      errors: undefined      
+      errors: undefined,
     };
   } catch (error) {
     return {
       isValid: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
       errors: {
         signature: true,
-        message: error instanceof Error ? error.message : 'Unknown error'
-      }
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
     };
   }
 };
 
 export const generateEC512KeyPair = async (): Promise<KeyPair> => {
   try {
-    const { privateKey, publicKey } = await generateKeyPair('ES512', {
-      extractable: true  // Make sure keys are extractable
+    const { privateKey, publicKey } = await generateKeyPair("ES512", {
+      extractable: true, // Make sure keys are extractable
     });
-    
+
     // Export keys in PKCS8 (private) and SPKI (public) formats
     const exportedPrivateKey = await jose.exportPKCS8(privateKey);
     const exportedPublicKey = await jose.exportSPKI(publicKey);
-    
+
     return {
       id: crypto.randomUUID(),
-      name: 'Generated ES512 Key Pair',
+      name: "Generated ES512 Key Pair",
       privateKey: exportedPrivateKey,
       publicKey: exportedPublicKey,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Key pair generation error:', error);
+    console.error("Key pair generation error:", error);
     throw error;
   }
 };
@@ -302,13 +308,13 @@ export const generateEC512KeyPair = async (): Promise<KeyPair> => {
 // Optional helper to extract public key from private key
 export const extractPublicKeyFromPrivate = async (privateKeyString: string): Promise<string> => {
   try {
-    const privateKey = await jose.importPKCS8(privateKeyString, 'ES512', { extractable: true });
+    const privateKey = await jose.importPKCS8(privateKeyString, "ES512", { extractable: true });
     // A private key cannot be exported as SPKI directly: drop the private part of its JWK first.
     const jwk = await jose.exportJWK(privateKey);
     delete jwk.d;
-    return await jose.exportSPKI((await jose.importJWK(jwk, 'ES512')) as CryptoKey);
+    return await jose.exportSPKI((await jose.importJWK(jwk, "ES512")) as CryptoKey);
   } catch (error) {
-    console.error('Public key extraction error:', error);
+    console.error("Public key extraction error:", error);
     throw error;
   }
 };

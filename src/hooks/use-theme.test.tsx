@@ -14,17 +14,15 @@ const wrapper =
   );
 
 const mockSystemDark = (dark: boolean) =>
-  vi
-    .spyOn(window, "matchMedia")
-    .mockImplementation(
-      (query) =>
-        ({
-          matches: dark,
-          media: query,
-          addEventListener() {},
-          removeEventListener() {},
-        }) as unknown as MediaQueryList,
-    );
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (query) =>
+      ({
+        matches: dark,
+        media: query,
+        addEventListener() {},
+        removeEventListener() {},
+      }) as unknown as MediaQueryList,
+  );
 
 const rootClasses = () => [...document.documentElement.classList];
 

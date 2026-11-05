@@ -1,30 +1,34 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Plus, ChevronDown, ChevronUp, Pencil, Trash2, Download, Upload, ChevronRight } from 'lucide-react';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "../ui/tooltip";
-import { Label } from '../ui/label';
-import { PageHeader } from '../ui/page-header';
-import { KeyPair } from '../../types/activationKey';
-import { KeyPairForm } from '../keys/key-pair-form';
-import { validateKeyPair, hasValidationErrors, getFirstError } from '../../utils/validation';
-import { generateEC512KeyPair } from '../../utils/activationKey';
-import { exportKeyPairToZip, importKeyPairFromZip } from '../../utils/file-utils';
-import { useKeyPairs } from '../../hooks/use-key-pairs';
-import { useToast } from '../../hooks/use-toast';
-import { useCrudState } from '../../hooks/use-crud-state';
-import './Keys.css';
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  Download,
+  Upload,
+  ChevronRight,
+} from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { Label } from "../ui/label";
+import { PageHeader } from "../ui/page-header";
+import { KeyPair } from "../../types/activationKey";
+import { KeyPairForm } from "../keys/key-pair-form";
+import { validateKeyPair, hasValidationErrors, getFirstError } from "../../utils/validation";
+import { generateEC512KeyPair } from "../../utils/activationKey";
+import { exportKeyPairToZip, importKeyPairFromZip } from "../../utils/file-utils";
+import { useKeyPairs } from "../../hooks/use-key-pairs";
+import { useToast } from "../../hooks/use-toast";
+import { useCrudState } from "../../hooks/use-crud-state";
+import "./Keys.css";
 
-const EMPTY_KEY_PAIR: Omit<KeyPair, 'id'> = {
-  name: '',
-  publicKey: '',
-  privateKey: '',
-  createdAt: '',
+const EMPTY_KEY_PAIR: Omit<KeyPair, "id"> = {
+  name: "",
+  publicKey: "",
+  privateKey: "",
+  createdAt: "",
 };
 
 const Keys = () => {
@@ -42,7 +46,7 @@ const Keys = () => {
     setEditingItem: setEditingKeyPair,
     toggleEdit,
     cancelEditing,
-  } = useCrudState<KeyPair, Omit<KeyPair, 'id'>>({
+  } = useCrudState<KeyPair, Omit<KeyPair, "id">>({
     emptyItem: EMPTY_KEY_PAIR,
   });
 
@@ -58,24 +62,24 @@ const Keys = () => {
 
     const errors = validateKeyPair(trimmedKeyPair);
     if (hasValidationErrors(errors)) {
-      showError(getFirstError(errors) ?? 'Validation failed');
+      showError(getFirstError(errors) ?? "Validation failed");
       return;
     }
 
     try {
       addKeyPair(trimmedKeyPair);
-      success('Key pair created successfully');
+      success("Key pair created successfully");
       resetNewKeyPair();
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error saving key pair');
+      showError(err instanceof Error ? err.message : "Error saving key pair");
     }
   };
 
   const handleDelete = async (id: string) => {
-    const confirmed = await confirm('Are you sure you want to delete this key pair?');
+    const confirmed = await confirm("Are you sure you want to delete this key pair?");
     if (confirmed) {
       deleteKeyPair(id);
-      success('Key pair deleted');
+      success("Key pair deleted");
     }
   };
 
@@ -94,12 +98,12 @@ const Keys = () => {
 
     const errors = validateKeyPair(trimmedKeyPair);
     if (hasValidationErrors(errors)) {
-      showError(getFirstError(errors) ?? 'Validation failed');
+      showError(getFirstError(errors) ?? "Validation failed");
       return;
     }
 
     updateKeyPair(editingKeyPair.id, trimmedKeyPair);
-    success('Key pair updated');
+    success("Key pair updated");
     cancelEditing();
   };
 
@@ -110,11 +114,11 @@ const Keys = () => {
         name: generatedPair.name,
         publicKey: generatedPair.publicKey,
         privateKey: generatedPair.privateKey,
-        createdAt: generatedPair.createdAt
+        createdAt: generatedPair.createdAt,
       });
-      success('Keys generated successfully');
+      success("Keys generated successfully");
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error generating key pair');
+      showError(err instanceof Error ? err.message : "Error generating key pair");
     }
   };
 
@@ -123,7 +127,7 @@ const Keys = () => {
       await exportKeyPairToZip(pair);
       success(`Exported ${pair.name}.zip`);
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error exporting key pair');
+      showError(err instanceof Error ? err.message : "Error exporting key pair");
     }
   };
 
@@ -138,13 +142,13 @@ const Keys = () => {
         createdAt: new Date().toISOString(),
       });
       startAdding();
-      success('Key pair imported - review and save');
+      success("Key pair imported - review and save");
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error importing key pair');
+      showError(err instanceof Error ? err.message : "Error importing key pair");
     }
 
     // Reset the input
-    event.target.value = '';
+    event.target.value = "";
   };
 
   return (
@@ -156,11 +160,11 @@ const Keys = () => {
 
       <div className="mt-2 mb-6 text-left">
         <button
-          onClick={() => setShowSec1Info(prev => !prev)}
+          onClick={() => setShowSec1Info((prev) => !prev)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronRight
-            className={`h-4 w-4 transition-transform ${showSec1Info ? 'rotate-90' : ''}`}
+            className={`h-4 w-4 transition-transform ${showSec1Info ? "rotate-90" : ""}`}
           />
           <p className="font-medium">Converting SEC1 PEM to PKCS#8</p>
         </button>
@@ -168,8 +172,8 @@ const Keys = () => {
         {showSec1Info && (
           <div className="mt-2 p-4 bg-secondary/10 rounded-lg text-sm">
             <p className="mb-2">
-              If you have a SEC1 PEM key (starting with "BEGIN EC PRIVATE KEY"),
-              you can convert it to PKCS#8 format using this command:
+              If you have a SEC1 PEM key (starting with "BEGIN EC PRIVATE KEY"), you can convert it
+              to PKCS#8 format using this command:
             </p>
             <pre className=" p-3 pr-12 bg-muted border rounded-md font-mono text-sm break-all">
               openssl pkcs8 -topk8 -nocrypt -in sec1_ec_private_key.pem -out pkcs8_private_key.pem
@@ -213,11 +217,7 @@ const Keys = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button
-            onClick={startAdding}
-            disabled={isAddingNew}
-            size="icon"
-          >
+          <Button onClick={startAdding} disabled={isAddingNew} size="icon">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
@@ -309,7 +309,9 @@ const Keys = () => {
                         toggleEdit(pair);
                       }}
                     >
-                      <Pencil className={`h-5 w-5 ${editingId === pair.id ? "text-primary" : ""}`} />
+                      <Pencil
+                        className={`h-5 w-5 ${editingId === pair.id ? "text-primary" : ""}`}
+                      />
                     </Button>
                   </div>
                 </div>
@@ -320,7 +322,9 @@ const Keys = () => {
                     <KeyPairForm
                       mode="edit"
                       keyPair={editingKeyPair || {}}
-                      onChange={(e) => setEditingKeyPair((prev) => prev ? { ...prev, ...e } : null)}
+                      onChange={(e) =>
+                        setEditingKeyPair((prev) => (prev ? { ...prev, ...e } : null))
+                      }
                       onSave={handleUpdateKey}
                       onCancel={cancelEditing}
                     />
@@ -328,15 +332,11 @@ const Keys = () => {
                     <>
                       <div className="space-y-2 mb-12">
                         <Label className="key-label">Public Key (PEM)</Label>
-                        <div className="key-display blurred">
-                          {pair.publicKey}
-                        </div>
+                        <div className="key-display blurred">{pair.publicKey}</div>
                       </div>
                       <div className="space-y-2">
                         <Label className="key-label mt-6">Private Key (PEM)</Label>
-                        <div className="key-display blurred">
-                          {pair.privateKey}
-                        </div>
+                        <div className="key-display blurred">{pair.privateKey}</div>
                       </div>
                     </>
                   )}

@@ -1,24 +1,41 @@
-import { useReducer, useEffect, useCallback, useState, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from '../ui/card';
-import { Textarea } from '../ui/textarea';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { useReducer, useEffect, useCallback, useState, useRef, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent } from "../ui/card";
+import { Textarea } from "../ui/textarea";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import Editor from "@monaco-editor/react";
-import { Button } from '../ui/button';
-import { X, Check, Copy, FileText, Plus, Save, AlertTriangle, Key, ChevronDown, Circle } from 'lucide-react';
-import { Algorithm, SUPPORTED_ALGORITHMS } from '../../types/activationKey';
-import { decodeJWT, getJwtMetadata, signJWT, validateJWTSignature, ValidationResult } from '../../utils/activationKey';
-import { ActivationKeyMetadataDisplay } from '../activationkey/ActivationKeyMetadata';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { PageHeader } from '../ui/page-header';
-import { useTheme } from '../../hooks/use-theme';
-import { useKeyPairs } from '../../hooks/use-key-pairs';
-import { useTemplates } from '../../hooks/use-templates';
-import { useToast } from '../../hooks/use-toast';
-import { PENDING_TEMPLATE_KEY } from './Templates';
-import './ActivationKeyEditor.css';
+import { Button } from "../ui/button";
+import {
+  X,
+  Check,
+  Copy,
+  FileText,
+  Plus,
+  Save,
+  AlertTriangle,
+  Key,
+  ChevronDown,
+  Circle,
+} from "lucide-react";
+import { Algorithm, SUPPORTED_ALGORITHMS } from "../../types/activationKey";
+import {
+  decodeJWT,
+  getJwtMetadata,
+  signJWT,
+  validateJWTSignature,
+  ValidationResult,
+} from "../../utils/activationKey";
+import { ActivationKeyMetadataDisplay } from "../activationkey/ActivationKeyMetadata";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { PageHeader } from "../ui/page-header";
+import { useTheme } from "../../hooks/use-theme";
+import { useKeyPairs } from "../../hooks/use-key-pairs";
+import { useTemplates } from "../../hooks/use-templates";
+import { useToast } from "../../hooks/use-toast";
+import { PENDING_TEMPLATE_KEY } from "./Templates";
+import "./ActivationKeyEditor.css";
 
 // State type for the editor
 interface EditorState {
@@ -35,35 +52,44 @@ interface EditorState {
 
 // Action types for the reducer
 type EditorAction =
-  | { type: 'SET_INPUT'; payload: string }
-  | { type: 'SET_JWT'; payload: { jwt: string; editorValue: string; algorithm?: Algorithm; expiryDate?: Date; issuedDate?: Date } }
-  | { type: 'SET_EDITOR_VALUE'; payload: string }
-  | { type: 'SET_ALGORITHM'; payload: Algorithm }
-  | { type: 'SET_EXPIRY_DATE'; payload: Date | undefined }
-  | { type: 'SET_ISSUED_DATE'; payload: Date | undefined }
-  | { type: 'SET_SELECTED_KEY'; payload: string }
-  | { type: 'SET_VALIDATION'; payload: ValidationResult | null }
-  | { type: 'SHOW_COPIED' }
-  | { type: 'HIDE_COPIED' }
-  | { type: 'CLEAR' };
+  | { type: "SET_INPUT"; payload: string }
+  | {
+      type: "SET_JWT";
+      payload: {
+        jwt: string;
+        editorValue: string;
+        algorithm?: Algorithm;
+        expiryDate?: Date;
+        issuedDate?: Date;
+      };
+    }
+  | { type: "SET_EDITOR_VALUE"; payload: string }
+  | { type: "SET_ALGORITHM"; payload: Algorithm }
+  | { type: "SET_EXPIRY_DATE"; payload: Date | undefined }
+  | { type: "SET_ISSUED_DATE"; payload: Date | undefined }
+  | { type: "SET_SELECTED_KEY"; payload: string }
+  | { type: "SET_VALIDATION"; payload: ValidationResult | null }
+  | { type: "SHOW_COPIED" }
+  | { type: "HIDE_COPIED" }
+  | { type: "CLEAR" };
 
 const initialState: EditorState = {
-  inputValue: '',
-  jwt: '',
-  editorValue: '{}',
-  algorithm: 'ES512',
+  inputValue: "",
+  jwt: "",
+  editorValue: "{}",
+  algorithm: "ES512",
   expiryDate: undefined,
   issuedDate: undefined,
-  selectedKeyId: '',
+  selectedKeyId: "",
   validation: null,
   showCopied: false,
 };
 
 function editorReducer(state: EditorState, action: EditorAction): EditorState {
   switch (action.type) {
-    case 'SET_INPUT':
+    case "SET_INPUT":
       return { ...state, inputValue: action.payload };
-    case 'SET_JWT':
+    case "SET_JWT":
       return {
         ...state,
         jwt: action.payload.jwt,
@@ -72,23 +98,23 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         expiryDate: action.payload.expiryDate ?? state.expiryDate,
         issuedDate: action.payload.issuedDate ?? state.issuedDate,
       };
-    case 'SET_EDITOR_VALUE':
+    case "SET_EDITOR_VALUE":
       return { ...state, editorValue: action.payload };
-    case 'SET_ALGORITHM':
+    case "SET_ALGORITHM":
       return { ...state, algorithm: action.payload };
-    case 'SET_EXPIRY_DATE':
+    case "SET_EXPIRY_DATE":
       return { ...state, expiryDate: action.payload };
-    case 'SET_ISSUED_DATE':
+    case "SET_ISSUED_DATE":
       return { ...state, issuedDate: action.payload };
-    case 'SET_SELECTED_KEY':
+    case "SET_SELECTED_KEY":
       return { ...state, selectedKeyId: action.payload };
-    case 'SET_VALIDATION':
+    case "SET_VALIDATION":
       return { ...state, validation: action.payload };
-    case 'SHOW_COPIED':
+    case "SHOW_COPIED":
       return { ...state, showCopied: true };
-    case 'HIDE_COPIED':
+    case "HIDE_COPIED":
       return { ...state, showCopied: false };
-    case 'CLEAR':
+    case "CLEAR":
       return { ...initialState, selectedKeyId: state.selectedKeyId };
     default:
       return state;
@@ -106,7 +132,7 @@ const ActivationKeyEditor = () => {
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
 
   // Track original editor value for dirty detection
-  const originalEditorValueRef = useRef<string>('{}');
+  const originalEditorValueRef = useRef<string>("{}");
 
   // Ref to store handleInputChange to avoid effect dependency issues
   const handleInputChangeRef = useRef<((value: string) => Promise<void>) | undefined>(undefined);
@@ -116,16 +142,26 @@ const ActivationKeyEditor = () => {
 
   // Save as template state
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [templateDescription, setTemplateDescription] = useState('');
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const [saveAsExpired, setSaveAsExpired] = useState(false);
 
-  const { inputValue, jwt, editorValue, algorithm, expiryDate, issuedDate, selectedKeyId, validation, showCopied } = state;
+  const {
+    inputValue,
+    jwt,
+    editorValue,
+    algorithm,
+    expiryDate,
+    issuedDate,
+    selectedKeyId,
+    validation,
+    showCopied,
+  } = state;
 
   // Compute dirty state with useMemo to avoid unnecessary recalculations
   const isDirty = useMemo(() => {
-    return editorValue !== originalEditorValueRef.current && jwt !== '';
+    return editorValue !== originalEditorValueRef.current && jwt !== "";
   }, [editorValue, jwt]);
 
   // Check if current JWT is expired
@@ -139,102 +175,111 @@ const ActivationKeyEditor = () => {
   // Set initial selected key when keyPairs load
   useEffect(() => {
     if (keyPairs.length > 0 && !selectedKeyId) {
-      dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
+      dispatch({ type: "SET_SELECTED_KEY", payload: keyPairs[0].id });
     }
   }, [keyPairs, selectedKeyId]);
 
   // Validate JWT when selected key changes
   useEffect(() => {
     if (!jwt) {
-      dispatch({ type: 'SET_VALIDATION', payload: null });
+      dispatch({ type: "SET_VALIDATION", payload: null });
       return;
     }
 
     if (!selectedKeyId) {
-      dispatch({ type: 'SET_VALIDATION', payload: {
-        isValid: false,
-        error: 'No signing key selected',
-        errors: { signature: true, message: 'Please select a signing key' }
-      }});
+      dispatch({
+        type: "SET_VALIDATION",
+        payload: {
+          isValid: false,
+          error: "No signing key selected",
+          errors: { signature: true, message: "Please select a signing key" },
+        },
+      });
       return;
     }
 
     const selectedKey = getKeyPairById(selectedKeyId);
     if (!selectedKey) {
-      dispatch({ type: 'SET_VALIDATION', payload: {
-        isValid: false,
-        error: 'Selected key not found',
-        errors: { signature: true, message: 'The selected key no longer exists' }
-      }});
+      dispatch({
+        type: "SET_VALIDATION",
+        payload: {
+          isValid: false,
+          error: "Selected key not found",
+          errors: { signature: true, message: "The selected key no longer exists" },
+        },
+      });
       return;
     }
 
-    validateJWTSignature(jwt, selectedKey).then(result => {
-      dispatch({ type: 'SET_VALIDATION', payload: result });
+    validateJWTSignature(jwt, selectedKey).then((result) => {
+      dispatch({ type: "SET_VALIDATION", payload: result });
     });
   }, [selectedKeyId, jwt, getKeyPairById]);
 
-  const handleInputChange = useCallback(async (value: string) => {
-    dispatch({ type: 'SET_INPUT', payload: value });
+  const handleInputChange = useCallback(
+    async (value: string) => {
+      dispatch({ type: "SET_INPUT", payload: value });
 
-    if (!value) {
-      dispatch({ type: 'CLEAR' });
-      return;
-    }
-
-    // Try to parse as JWT
-    const metadata = getJwtMetadata(value);
-    let newAlgorithm: Algorithm | undefined;
-    let newExpiryDate: Date | undefined;
-    let newIssuedDate: Date | undefined;
-
-    if (metadata) {
-      if (metadata.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
-        newAlgorithm = metadata.algorithm as Algorithm;
+      if (!value) {
+        dispatch({ type: "CLEAR" });
+        return;
       }
-      if (metadata.expiresAt) {
-        newExpiryDate = new Date(metadata.expiresAt);
+
+      // Try to parse as JWT
+      const metadata = getJwtMetadata(value);
+      let newAlgorithm: Algorithm | undefined;
+      let newExpiryDate: Date | undefined;
+      let newIssuedDate: Date | undefined;
+
+      if (metadata) {
+        if (metadata.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
+          newAlgorithm = metadata.algorithm as Algorithm;
+        }
+        if (metadata.expiresAt) {
+          newExpiryDate = new Date(metadata.expiresAt);
+        }
+        if (metadata.issuedAt) {
+          newIssuedDate = new Date(metadata.issuedAt);
+        }
       }
-      if (metadata.issuedAt) {
-        newIssuedDate = new Date(metadata.issuedAt);
+
+      const decoded = await decodeJWT(value);
+      let payloadOnly = "{}";
+      try {
+        const parsedDecoded = JSON.parse(decoded);
+        payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
+      } catch {
+        // Keep default empty object
       }
-    }
 
-    const decoded = await decodeJWT(value);
-    let payloadOnly = '{}';
-    try {
-      const parsedDecoded = JSON.parse(decoded);
-      payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
-    } catch {
-      // Keep default empty object
-    }
-
-    dispatch({
-      type: 'SET_JWT',
-      payload: {
-        jwt: value,
-        editorValue: payloadOnly,
-        algorithm: newAlgorithm,
-        expiryDate: newExpiryDate,
-        issuedDate: newIssuedDate,
-      },
-    });
-
-    // Track original value for dirty detection
-    originalEditorValueRef.current = payloadOnly;
-
-    // Validate signature
-    const selectedKey = getKeyPairById(selectedKeyId);
-    try {
-      const validationResult = await validateJWTSignature(value, selectedKey);
-      dispatch({ type: 'SET_VALIDATION', payload: validationResult });
-    } catch {
       dispatch({
-        type: 'SET_VALIDATION',
-        payload: { isValid: false, error: 'Invalid signature' },
+        type: "SET_JWT",
+        payload: {
+          jwt: value,
+          editorValue: payloadOnly,
+          algorithm: newAlgorithm,
+          expiryDate: newExpiryDate,
+          issuedDate: newIssuedDate,
+        },
       });
-    }
-  }, [selectedKeyId, getKeyPairById]);
+
+      // Track original value for dirty detection
+      originalEditorValueRef.current = payloadOnly;
+
+      // Validate signature
+      const selectedKey = getKeyPairById(selectedKeyId);
+      try {
+        const validationResult = await validateJWTSignature(value, selectedKey);
+        dispatch({ type: "SET_VALIDATION", payload: validationResult });
+      } catch {
+        dispatch({
+          type: "SET_VALIDATION",
+          payload: { isValid: false, error: "Invalid signature" },
+        });
+      }
+    },
+    [selectedKeyId, getKeyPairById],
+  );
 
   // Keep ref in sync with callback
   handleInputChangeRef.current = handleInputChange;
@@ -260,7 +305,7 @@ const ActivationKeyEditor = () => {
     try {
       payload = JSON.parse(editorValue);
     } catch {
-      showError('Invalid JSON payload');
+      showError("Invalid JSON payload");
       return;
     }
 
@@ -279,11 +324,11 @@ const ActivationKeyEditor = () => {
         payload,
         algorithm,
         selectedKey,
-        expiryDate || (payload.exp ? new Date(payload.exp * 1000) : new Date())
+        expiryDate || (payload.exp ? new Date(payload.exp * 1000) : new Date()),
       );
 
       const newDecoded = await decodeJWT(newToken);
-      let payloadOnly = '{}';
+      let payloadOnly = "{}";
       try {
         const parsedDecoded = JSON.parse(newDecoded);
         payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
@@ -292,52 +337,51 @@ const ActivationKeyEditor = () => {
       }
 
       dispatch({
-        type: 'SET_JWT',
+        type: "SET_JWT",
         payload: { jwt: newToken, editorValue: payloadOnly },
       });
     } catch (error) {
-      console.error('Signing error:', error);
-      showError('Failed to sign activation key');
+      console.error("Signing error:", error);
+      showError("Failed to sign activation key");
     }
   }, [selectedKeyId, editorValue, expiryDate, issuedDate, algorithm, getKeyPairById, showError]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
-    dispatch({ type: 'SHOW_COPIED' });
-    setTimeout(() => dispatch({ type: 'HIDE_COPIED' }), 2000);
+    dispatch({ type: "SHOW_COPIED" });
+    setTimeout(() => dispatch({ type: "HIDE_COPIED" }), 2000);
   }, []);
 
   const clearJwt = useCallback(() => {
-    dispatch({ type: 'CLEAR' });
+    dispatch({ type: "CLEAR" });
     setSourceTemplateId(null);
-    originalEditorValueRef.current = '{}';
+    originalEditorValueRef.current = "{}";
     if (keyPairs.length > 0) {
-      dispatch({ type: 'SET_SELECTED_KEY', payload: keyPairs[0].id });
+      dispatch({ type: "SET_SELECTED_KEY", payload: keyPairs[0].id });
     }
   }, [keyPairs]);
 
   // Handle template switching with dirty check
-  const handleSwitchTemplate = useCallback(async (templateId: string) => {
-    const template = getTemplateById(templateId);
-    if (!template) return;
+  const handleSwitchTemplate = useCallback(
+    async (templateId: string) => {
+      const template = getTemplateById(templateId);
+      if (!template) return;
 
-    // Check for unsaved changes
-    if (isDirty) {
-      const confirmed = await confirm(
-        'You have unsaved changes. Switch template anyway?'
-      );
-      if (!confirmed) return;
-    }
+      // Check for unsaved changes
+      if (isDirty) {
+        const confirmed = await confirm("You have unsaved changes. Switch template anyway?");
+        if (!confirmed) return;
+      }
 
-    setTemplateSwitcherOpen(false);
-    setSourceTemplateId(template.id);
-    handleInputChange(template.activationKey);
-  }, [isDirty, confirm, getTemplateById, handleInputChange]);
+      setTemplateSwitcherOpen(false);
+      setSourceTemplateId(template.id);
+      handleInputChange(template.activationKey);
+    },
+    [isDirty, confirm, getTemplateById, handleInputChange],
+  );
 
   // Get current template name
-  const currentTemplateName = sourceTemplateId
-    ? getTemplateById(sourceTemplateId)?.name
-    : null;
+  const currentTemplateName = sourceTemplateId ? getTemplateById(sourceTemplateId)?.name : null;
 
   // Handle opening save template popover
   const handleSaveTemplateClick = useCallback(() => {
@@ -351,19 +395,22 @@ const ActivationKeyEditor = () => {
       const sourceTemplate = getTemplateById(sourceTemplateId);
       if (sourceTemplate) {
         setTemplateName(sourceTemplate.name);
-        setTemplateDescription(sourceTemplate.description || '');
+        setTemplateDescription(sourceTemplate.description || "");
         return;
       }
     }
 
-    setTemplateName('');
-    setTemplateDescription('');
+    setTemplateName("");
+    setTemplateDescription("");
   }, [isJwtExpired, sourceTemplateId, getTemplateById]);
 
   // Find existing template by name
-  const findTemplateByName = useCallback((name: string) => {
-    return templates.find(t => t.name.toLowerCase() === name.toLowerCase());
-  }, [templates]);
+  const findTemplateByName = useCallback(
+    (name: string) => {
+      return templates.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    },
+    [templates],
+  );
 
   // Generate activation key with modified expiry for template saving
   const getActivationKeyForTemplate = useCallback(async (): Promise<string | null> => {
@@ -374,7 +421,7 @@ const ActivationKeyEditor = () => {
     // Need to sign a new AK with expiry 24h before now
     const selectedKey = getKeyPairById(selectedKeyId);
     if (!selectedKey) {
-      showError('No signing key selected');
+      showError("No signing key selected");
       return null;
     }
 
@@ -382,7 +429,7 @@ const ActivationKeyEditor = () => {
     try {
       payload = JSON.parse(editorValue);
     } catch {
-      showError('Invalid JSON payload');
+      showError("Invalid JSON payload");
       return null;
     }
 
@@ -399,24 +446,38 @@ const ActivationKeyEditor = () => {
     }
 
     try {
-      const expiredToken = await signJWT(payload, algorithm, selectedKey, new Date(payload.exp * 1000));
+      const expiredToken = await signJWT(
+        payload,
+        algorithm,
+        selectedKey,
+        new Date(payload.exp * 1000),
+      );
       return expiredToken;
     } catch (error) {
-      console.error('Error generating expired AK:', error);
-      showError('Failed to generate expired activation key');
+      console.error("Error generating expired AK:", error);
+      showError("Failed to generate expired activation key");
       return null;
     }
-  }, [saveAsExpired, isJwtExpired, jwt, selectedKeyId, editorValue, algorithm, getKeyPairById, showError]);
+  }, [
+    saveAsExpired,
+    isJwtExpired,
+    jwt,
+    selectedKeyId,
+    editorValue,
+    algorithm,
+    getKeyPairById,
+    showError,
+  ]);
 
   // Handle saving template
   const handleSaveTemplate = useCallback(async () => {
     if (!templateName.trim()) {
-      showError('Please enter a template name');
+      showError("Please enter a template name");
       return;
     }
 
     if (!jwt) {
-      showError('No activation key to save');
+      showError("No activation key to save");
       return;
     }
 
@@ -428,7 +489,7 @@ const ActivationKeyEditor = () => {
     // If name conflicts with a different template, warn and ask
     if (isNameConflict) {
       const confirmed = await confirm(
-        `A template named "${trimmedName}" already exists. Do you want to overwrite it?`
+        `A template named "${trimmedName}" already exists. Do you want to overwrite it?`,
       );
       if (!confirmed) return;
     }
@@ -436,7 +497,7 @@ const ActivationKeyEditor = () => {
     // If overwriting source template, ask for confirmation
     if (isOverwrite) {
       const confirmed = await confirm(
-        `Do you want to update the existing template "${trimmedName}"?`
+        `Do you want to update the existing template "${trimmedName}"?`,
       );
       if (!confirmed) return;
     }
@@ -452,22 +513,34 @@ const ActivationKeyEditor = () => {
         description: templateDescription.trim() || undefined,
         activationKey: activationKeyToSave,
       });
-      showSuccess('Template updated successfully');
+      showSuccess("Template updated successfully");
     } else {
       addTemplate({
         name: trimmedName,
         description: templateDescription.trim() || undefined,
         activationKey: activationKeyToSave,
       });
-      showSuccess('Template saved successfully');
+      showSuccess("Template saved successfully");
     }
 
     setSaveTemplateOpen(false);
-    setTemplateName('');
-    setTemplateDescription('');
+    setTemplateName("");
+    setTemplateDescription("");
     setShowExpiryWarning(false);
     setSaveAsExpired(false);
-  }, [templateName, templateDescription, jwt, sourceTemplateId, findTemplateByName, getActivationKeyForTemplate, updateTemplate, addTemplate, showError, showSuccess, confirm]);
+  }, [
+    templateName,
+    templateDescription,
+    jwt,
+    sourceTemplateId,
+    findTemplateByName,
+    getActivationKeyForTemplate,
+    updateTemplate,
+    addTemplate,
+    showError,
+    showSuccess,
+    confirm,
+  ]);
 
   return (
     <div className="ak-editor-container">
@@ -535,12 +608,7 @@ const ActivationKeyEditor = () => {
         </div>
       ) : (
         <Card className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ak-clear-button"
-            onClick={clearJwt}
-          >
+          <Button variant="ghost" size="icon" className="ak-clear-button" onClick={clearJwt}>
             <X className="h-4 w-4" />
           </Button>
           <CardContent className="space-y-6 pt-6">
@@ -549,7 +617,9 @@ const ActivationKeyEditor = () => {
                 <Editor
                   defaultLanguage="json"
                   value={editorValue}
-                  onChange={(value) => dispatch({ type: 'SET_EDITOR_VALUE', payload: value || '{}' })}
+                  onChange={(value) =>
+                    dispatch({ type: "SET_EDITOR_VALUE", payload: value || "{}" })
+                  }
                   options={{
                     minimap: { enabled: false },
                     formatOnPaste: true,
@@ -558,7 +628,7 @@ const ActivationKeyEditor = () => {
                     scrollBeyondLastLine: false,
                     tabSize: 2,
                     fontSize: 12,
-                    lineNumbers: 'off',
+                    lineNumbers: "off",
                     folding: false,
                     glyphMargin: false,
                     lineDecorationsWidth: 0,
@@ -567,14 +637,14 @@ const ActivationKeyEditor = () => {
                     overviewRulerLanes: 0,
                     hideCursorInOverviewRuler: true,
                     scrollbar: {
-                      vertical: 'auto',
-                      horizontal: 'auto',
+                      vertical: "auto",
+                      horizontal: "auto",
                       verticalScrollbarSize: 10,
                       horizontalScrollbarSize: 10,
-                      alwaysConsumeMouseWheel: false
-                    }
+                      alwaysConsumeMouseWheel: false,
+                    },
                   }}
-                  theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                  theme={theme === "dark" ? "vs-dark" : "light"}
                 />
               </div>
 
@@ -588,11 +658,13 @@ const ActivationKeyEditor = () => {
                   <div className="flex items-center gap-2">
                     {/* Validation indicator */}
                     {validation && (
-                      <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                        validation.isValid
-                          ? 'bg-green-500/10 text-green-500'
-                          : 'bg-destructive/10 text-destructive'
-                      }`}>
+                      <div
+                        className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                          validation.isValid
+                            ? "bg-green-500/10 text-green-500"
+                            : "bg-destructive/10 text-destructive"
+                        }`}
+                      >
                         {validation.isValid ? (
                           <Check className="h-4 w-4" />
                         ) : (
@@ -602,13 +674,8 @@ const ActivationKeyEditor = () => {
                     )}
                     <Popover open={templateSwitcherOpen} onOpenChange={setTemplateSwitcherOpen}>
                       <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="flex-1 justify-between h-10"
-                        >
-                          <span className="truncate">
-                            {currentTemplateName || 'No template'}
-                          </span>
+                        <Button variant="outline" className="flex-1 justify-between h-10">
+                          <span className="truncate">{currentTemplateName || "No template"}</span>
                           <div className="flex items-center gap-1.5">
                             {isDirty && (
                               <Circle className="h-2 w-2 fill-orange-500 text-orange-500" />
@@ -633,7 +700,7 @@ const ActivationKeyEditor = () => {
                                 key={template.id}
                                 onClick={() => handleSwitchTemplate(template.id)}
                                 className={`w-full px-3 py-2 text-left hover:bg-secondary/50 transition-colors ${
-                                  template.id === sourceTemplateId ? 'bg-secondary/30' : ''
+                                  template.id === sourceTemplateId ? "bg-secondary/30" : ""
                                 }`}
                               >
                                 <div className="text-sm font-medium flex items-center gap-2">
@@ -673,9 +740,9 @@ const ActivationKeyEditor = () => {
                   <ActivationKeyMetadataDisplay
                     metadata={getJwtMetadata(jwt)!}
                     expiryDate={expiryDate}
-                    onExpiryChange={(date) => dispatch({ type: 'SET_EXPIRY_DATE', payload: date })}
+                    onExpiryChange={(date) => dispatch({ type: "SET_EXPIRY_DATE", payload: date })}
                     issuedDate={issuedDate}
-                    onIssuedChange={(date) => dispatch({ type: 'SET_ISSUED_DATE', payload: date })}
+                    onIssuedChange={(date) => dispatch({ type: "SET_ISSUED_DATE", payload: date })}
                   />
                 )}
 
@@ -687,7 +754,9 @@ const ActivationKeyEditor = () => {
                   </Label>
                   <Select
                     value={selectedKeyId}
-                    onValueChange={(value) => dispatch({ type: 'SET_SELECTED_KEY', payload: value })}
+                    onValueChange={(value) =>
+                      dispatch({ type: "SET_SELECTED_KEY", payload: value })
+                    }
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a key for signing" />
@@ -695,7 +764,7 @@ const ActivationKeyEditor = () => {
                     <SelectContent>
                       {keyPairs.map((key) => (
                         <SelectItem key={key.id} value={key.id}>
-                          {key.name} ({algorithm.startsWith('HS') ? 'Symmetric' : 'Asymmetric'})
+                          {key.name} ({algorithm.startsWith("HS") ? "Symmetric" : "Asymmetric"})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -738,8 +807,8 @@ const ActivationKeyEditor = () => {
                             <div className="flex items-start gap-2">
                               <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
                               <div className="text-xs text-yellow-800 dark:text-yellow-200">
-                                <strong>Notice:</strong> This activation key is not expired.
-                                For safety reasons, templates should contain expired keys only.
+                                <strong>Notice:</strong> This activation key is not expired. For
+                                safety reasons, templates should contain expired keys only.
                               </div>
                             </div>
                             <div className="flex items-center gap-2 pl-6">
@@ -750,7 +819,10 @@ const ActivationKeyEditor = () => {
                                 onChange={(e) => setSaveAsExpired(e.target.checked)}
                                 className="h-4 w-4 rounded-sm border-yellow-600 text-yellow-600 focus:ring-yellow-500"
                               />
-                              <label htmlFor="save-as-expired" className="text-xs text-yellow-800 dark:text-yellow-200 cursor-pointer">
+                              <label
+                                htmlFor="save-as-expired"
+                                className="text-xs text-yellow-800 dark:text-yellow-200 cursor-pointer"
+                              >
                                 Save as expired (set expiry to 24h ago)
                               </label>
                             </div>
@@ -758,7 +830,9 @@ const ActivationKeyEditor = () => {
                         )}
 
                         <div className="space-y-2">
-                          <Label htmlFor="template-name" className="text-sm">Name *</Label>
+                          <Label htmlFor="template-name" className="text-sm">
+                            Name *
+                          </Label>
                           <Input
                             id="template-name"
                             value={templateName}
@@ -769,7 +843,9 @@ const ActivationKeyEditor = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="template-description" className="text-sm">Description (optional)</Label>
+                          <Label htmlFor="template-description" className="text-sm">
+                            Description (optional)
+                          </Label>
                           <Input
                             id="template-description"
                             value={templateDescription}
@@ -786,13 +862,11 @@ const ActivationKeyEditor = () => {
                           >
                             Cancel
                           </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveTemplate}
-                          >
-                            {sourceTemplateId && findTemplateByName(templateName)?.id === sourceTemplateId
-                              ? 'Update Template'
-                              : 'Save Template'}
+                          <Button size="sm" onClick={handleSaveTemplate}>
+                            {sourceTemplateId &&
+                            findTemplateByName(templateName)?.id === sourceTemplateId
+                              ? "Update Template"
+                              : "Save Template"}
                           </Button>
                         </div>
                       </div>
@@ -802,9 +876,7 @@ const ActivationKeyEditor = () => {
 
                 {jwt && (
                   <div className="ak-output">
-                    <div className="ak-output-text">
-                      {jwt}
-                    </div>
+                    <div className="ak-output-text">{jwt}</div>
                     <Button
                       variant="ghost"
                       size="icon"

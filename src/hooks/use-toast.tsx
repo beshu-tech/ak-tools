@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
+import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
+type ToastType = "success" | "error" | "warning" | "info";
 
 interface Toast {
   id: string;
@@ -27,23 +27,23 @@ const DEFAULT_DURATION = 4000;
 
 const toastStyles: Record<ToastType, { bg: string; border: string; icon: React.ReactNode }> = {
   success: {
-    bg: 'bg-green-50 dark:bg-green-950',
-    border: 'border-green-200 dark:border-green-800',
+    bg: "bg-green-50 dark:bg-green-950",
+    border: "border-green-200 dark:border-green-800",
     icon: <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />,
   },
   error: {
-    bg: 'bg-red-50 dark:bg-red-950',
-    border: 'border-red-200 dark:border-red-800',
+    bg: "bg-red-50 dark:bg-red-950",
+    border: "border-red-200 dark:border-red-800",
     icon: <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />,
   },
   warning: {
-    bg: 'bg-yellow-50 dark:bg-yellow-950',
-    border: 'border-yellow-200 dark:border-yellow-800',
+    bg: "bg-yellow-50 dark:bg-yellow-950",
+    border: "border-yellow-200 dark:border-yellow-800",
     icon: <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />,
   },
   info: {
-    bg: 'bg-blue-50 dark:bg-blue-950',
-    border: 'border-blue-200 dark:border-blue-800',
+    bg: "bg-blue-50 dark:bg-blue-950",
+    border: "border-blue-200 dark:border-blue-800",
     icon: <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
   },
 };
@@ -73,48 +73,56 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeout);
       timeoutsRef.current.delete(id);
     }
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const toast = useCallback((type: ToastType, message: string, duration = DEFAULT_DURATION) => {
-    const id = crypto.randomUUID();
-    const newToast: Toast = { id, type, message, duration };
+  const toast = useCallback(
+    (type: ToastType, message: string, duration = DEFAULT_DURATION) => {
+      const id = crypto.randomUUID();
+      const newToast: Toast = { id, type, message, duration };
 
-    setToasts(prev => [...prev, newToast]);
+      setToasts((prev) => [...prev, newToast]);
 
-    if (duration > 0) {
-      const timeout = setTimeout(() => {
-        dismiss(id);
-      }, duration);
-      timeoutsRef.current.set(id, timeout);
-    }
-  }, [dismiss]);
+      if (duration > 0) {
+        const timeout = setTimeout(() => {
+          dismiss(id);
+        }, duration);
+        timeoutsRef.current.set(id, timeout);
+      }
+    },
+    [dismiss],
+  );
 
-  const success = useCallback((message: string) => toast('success', message), [toast]);
-  const error = useCallback((message: string) => toast('error', message, 6000), [toast]);
-  const warning = useCallback((message: string) => toast('warning', message), [toast]);
-  const info = useCallback((message: string) => toast('info', message), [toast]);
+  const success = useCallback((message: string) => toast("success", message), [toast]);
+  const error = useCallback((message: string) => toast("error", message, 6000), [toast]);
+  const warning = useCallback((message: string) => toast("warning", message), [toast]);
+  const info = useCallback((message: string) => toast("info", message), [toast]);
 
   const confirm = useCallback((message: string): Promise<boolean> => {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setConfirmState({ message, resolve });
     });
   }, []);
 
-  const handleConfirm = useCallback((value: boolean) => {
-    if (confirmState) {
-      confirmState.resolve(value);
-      setConfirmState(null);
-    }
-  }, [confirmState]);
+  const handleConfirm = useCallback(
+    (value: boolean) => {
+      if (confirmState) {
+        confirmState.resolve(value);
+        setConfirmState(null);
+      }
+    },
+    [confirmState],
+  );
 
   return (
-    <ToastContext.Provider value={{ toasts, toast, success, error, warning, info, dismiss, confirm }}>
+    <ToastContext.Provider
+      value={{ toasts, toast, success, error, warning, info, dismiss, confirm }}
+    >
       {children}
 
       {/* Toast Container */}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-md">
-        {toasts.map(t => {
+        {toasts.map((t) => {
           const style = toastStyles[t.type];
           return (
             <div
@@ -137,10 +145,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Confirm Dialog */}
       {confirmState && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => handleConfirm(false)}
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => handleConfirm(false)} />
           <div className="relative bg-background border rounded-lg shadow-xl p-6 max-w-md mx-4 animate-in zoom-in-95 duration-200">
             <p className="text-foreground mb-6">{confirmState.message}</p>
             <div className="flex justify-end gap-3">
@@ -167,7 +172,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
+    throw new Error("useToast must be used within a ToastProvider");
   }
   return context;
 }

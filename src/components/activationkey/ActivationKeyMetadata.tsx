@@ -1,11 +1,11 @@
-import React from 'react';
-import { Shield, KeyRound, CalendarClock } from 'lucide-react';
-import { ActivationKeyMetadata } from '../../types/activationKey';
-import { formatRelativeTime } from '../../utils/activationKey';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Button } from '../ui/button';
-import { Calendar } from '../ui/calendar';
-import { format } from 'date-fns';
+import React from "react";
+import { Shield, KeyRound, CalendarClock } from "lucide-react";
+import { ActivationKeyMetadata } from "../../types/activationKey";
+import { formatRelativeTime } from "../../utils/activationKey";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Button } from "../ui/button";
+import { Calendar } from "../ui/calendar";
+import { format } from "date-fns";
 
 interface ActivationKeyMetadataDisplayProps {
   metadata: ActivationKeyMetadata;
@@ -28,9 +28,7 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
         <Shield className="h-5 w-5 text-muted-foreground" />
         <div className="text-center">
           <div className="text-sm font-medium">Algorithm</div>
-          <div className="text-sm text-muted-foreground">
-            {metadata.algorithm}
-          </div>
+          <div className="text-sm text-muted-foreground">{metadata.algorithm}</div>
         </div>
       </div>
 
@@ -41,17 +39,17 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
           {onIssuedChange ? (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="link" className="h-auto p-0 text-sm text-muted-foreground hover:no-underline">
-                  {issuedDate ? format(issuedDate, 'd MMM yyyy') : formatRelativeTime(metadata.issuedAt)}
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-sm text-muted-foreground hover:no-underline"
+                >
+                  {issuedDate
+                    ? format(issuedDate, "d MMM yyyy")
+                    : formatRelativeTime(metadata.issuedAt)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="center">
-                <Calendar
-                  mode="single"
-                  selected={issuedDate}
-                  onSelect={onIssuedChange}
-                  autoFocus
-                />
+                <Calendar mode="single" selected={issuedDate} onSelect={onIssuedChange} autoFocus />
               </PopoverContent>
             </Popover>
           ) : (
@@ -69,17 +67,17 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
           {onExpiryChange ? (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="link" className="h-auto p-0 text-sm text-muted-foreground hover:no-underline">
-                  {expiryDate ? format(expiryDate, 'd MMM yyyy') : formatRelativeTime(metadata.expiresAt, true)}
+                <Button
+                  variant="link"
+                  className="h-auto p-0 text-sm text-muted-foreground hover:no-underline"
+                >
+                  {expiryDate
+                    ? format(expiryDate, "d MMM yyyy")
+                    : formatRelativeTime(metadata.expiresAt, true)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={expiryDate}
-                  onSelect={onExpiryChange}
-                  autoFocus
-                />
+                <Calendar mode="single" selected={expiryDate} onSelect={onExpiryChange} autoFocus />
               </PopoverContent>
             </Popover>
           ) : (
@@ -91,4 +89,4 @@ export const ActivationKeyMetadataDisplay: React.FC<ActivationKeyMetadataDisplay
       </div>
     </div>
   );
-}; 
+};

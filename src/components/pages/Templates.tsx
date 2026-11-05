@@ -1,24 +1,38 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { Label } from '../ui/label';
-import { Plus, Pencil, Trash2, Copy, Check, AlertCircle, ExternalLink, FileText, Info } from 'lucide-react';
-import { useTemplates, AkTemplate } from '../../hooks/use-templates';
-import { useToast } from '../../hooks/use-toast';
-import { useCrudState } from '../../hooks/use-crud-state';
-import { getJwtMetadata, validateActivationKeyFormat, AkValidationResult } from '../../utils/activationKey';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  Check,
+  AlertCircle,
+  ExternalLink,
+  FileText,
+  Info,
+} from "lucide-react";
+import { useTemplates, AkTemplate } from "../../hooks/use-templates";
+import { useToast } from "../../hooks/use-toast";
+import { useCrudState } from "../../hooks/use-crud-state";
+import {
+  getJwtMetadata,
+  validateActivationKeyFormat,
+  AkValidationResult,
+} from "../../utils/activationKey";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Key for storing template to load in editor
-export const PENDING_TEMPLATE_KEY = 'pendingTemplateId';
+export const PENDING_TEMPLATE_KEY = "pendingTemplateId";
 
-const EMPTY_TEMPLATE: Omit<AkTemplate, 'id' | 'createdAt'> = {
-  name: '',
-  description: '',
-  activationKey: '',
+const EMPTY_TEMPLATE: Omit<AkTemplate, "id" | "createdAt"> = {
+  name: "",
+  description: "",
+  activationKey: "",
 };
 
 interface ValidationState {
@@ -42,21 +56,29 @@ const Templates = () => {
     setEditingItem: setEditingTemplate,
     toggleEdit,
     cancelEditing,
-  } = useCrudState<AkTemplate, Omit<AkTemplate, 'id' | 'createdAt'>>({
+  } = useCrudState<AkTemplate, Omit<AkTemplate, "id" | "createdAt">>({
     emptyItem: EMPTY_TEMPLATE,
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [newAkValidation, setNewAkValidation] = useState<ValidationState>({ error: null, touched: false });
-  const [editAkValidation, setEditAkValidation] = useState<ValidationState>({ error: null, touched: false });
+  const [newAkValidation, setNewAkValidation] = useState<ValidationState>({
+    error: null,
+    touched: false,
+  });
+  const [editAkValidation, setEditAkValidation] = useState<ValidationState>({
+    error: null,
+    touched: false,
+  });
 
   const resetNewTemplate = () => {
     resetNew();
     setNewAkValidation({ error: null, touched: false });
   };
 
-  const validateTemplate = (template: Omit<AkTemplate, 'id' | 'createdAt'>): { nameError: string | null; akValidation: AkValidationResult | null } => {
-    const nameError = !template.name.trim() ? 'Name is required' : null;
+  const validateTemplate = (
+    template: Omit<AkTemplate, "id" | "createdAt">,
+  ): { nameError: string | null; akValidation: AkValidationResult | null } => {
+    const nameError = !template.name.trim() ? "Name is required" : null;
     const akValidation = validateActivationKeyFormat(template.activationKey);
     return { nameError, akValidation };
   };
@@ -72,7 +94,9 @@ const Templates = () => {
     if (!akValidation || !akValidation.isValid) {
       setNewAkValidation({ error: akValidation, touched: true });
       if (akValidation && !akValidation.isValid) {
-        showError(`${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ''}`);
+        showError(
+          `${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ""}`,
+        );
       }
       return;
     }
@@ -83,18 +107,18 @@ const Templates = () => {
         description: newTemplate.description?.trim(),
         activationKey: newTemplate.activationKey.trim(),
       });
-      success('Template created');
+      success("Template created");
       resetNewTemplate();
     } catch (err) {
-      showError(err instanceof Error ? err.message : 'Error saving template');
+      showError(err instanceof Error ? err.message : "Error saving template");
     }
   };
 
   const handleDelete = async (id: string) => {
-    const confirmed = await confirm('Delete this template?');
+    const confirmed = await confirm("Delete this template?");
     if (confirmed) {
       deleteTemplate(id);
-      success('Template deleted');
+      success("Template deleted");
     }
   };
 
@@ -121,7 +145,9 @@ const Templates = () => {
     if (!akValidation || !akValidation.isValid) {
       setEditAkValidation({ error: akValidation, touched: true });
       if (akValidation && !akValidation.isValid) {
-        showError(`${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ''}`);
+        showError(
+          `${akValidation.message}${akValidation.details ? `: ${akValidation.details}` : ""}`,
+        );
       }
       return;
     }
@@ -131,7 +157,7 @@ const Templates = () => {
       description: editingTemplate.description?.trim(),
       activationKey: editingTemplate.activationKey.trim(),
     });
-    success('Template updated');
+    success("Template updated");
     handleCancelEditing();
   };
 
@@ -143,15 +169,19 @@ const Templates = () => {
 
   const getTemplateMetadata = (activationKey: string) => {
     const metadata = getJwtMetadata(activationKey);
-    if (!metadata) return { algorithm: 'Invalid', expiryText: '', isExpired: false };
+    if (!metadata) return { algorithm: "Invalid", expiryText: "", isExpired: false };
 
     const isExpired = metadata.expiresAt ? metadata.expiresAt < new Date() : false;
     const expiryText = metadata.expiresAt
-      ? metadata.expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : 'No expiry';
+      ? metadata.expiresAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "No expiry";
 
     return {
-      algorithm: metadata.algorithm || 'Unknown',
+      algorithm: metadata.algorithm || "Unknown",
       expiryText,
       isExpired,
     };
@@ -159,7 +189,7 @@ const Templates = () => {
 
   const loadInEditor = (templateId: string) => {
     localStorage.setItem(PENDING_TEMPLATE_KEY, templateId);
-    navigate('/');
+    navigate("/");
   };
 
   const renderValidationError = (validation: ValidationState) => {
@@ -184,15 +214,9 @@ const Templates = () => {
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
-            <p className="text-muted-foreground mt-1">
-              Reusable activation key configurations
-            </p>
+            <p className="text-muted-foreground mt-1">Reusable activation key configurations</p>
           </div>
-          <Button
-            onClick={startAdding}
-            disabled={isAddingNew}
-            className="gap-2"
-          >
+          <Button onClick={startAdding} disabled={isAddingNew} className="gap-2">
             <Plus className="h-4 w-4" />
             New Template
           </Button>
@@ -214,11 +238,16 @@ const Templates = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Label htmlFor="description">
+                    Description{" "}
+                    <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
                   <Input
                     id="description"
-                    value={newTemplate.description || ''}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
+                    value={newTemplate.description || ""}
+                    onChange={(e) =>
+                      setNewTemplate({ ...newTemplate, description: e.target.value })
+                    }
                     placeholder="Standard enterprise template"
                   />
                 </div>
@@ -232,16 +261,22 @@ const Templates = () => {
                   onChange={(e) => {
                     setNewTemplate({ ...newTemplate, activationKey: e.target.value });
                     if (newAkValidation.touched) {
-                      setNewAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
+                      setNewAkValidation({
+                        error: validateActivationKeyFormat(e.target.value),
+                        touched: true,
+                      });
                     }
                   }}
                   onBlur={() => {
                     if (newTemplate.activationKey.trim()) {
-                      setNewAkValidation({ error: validateActivationKeyFormat(newTemplate.activationKey), touched: true });
+                      setNewAkValidation({
+                        error: validateActivationKeyFormat(newTemplate.activationKey),
+                        touched: true,
+                      });
                     }
                   }}
                   placeholder="Paste activation key..."
-                  className={`font-mono text-xs h-24 resize-none ${newAkValidation.touched && newAkValidation.error && !newAkValidation.error.isValid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                  className={`font-mono text-xs h-24 resize-none ${newAkValidation.touched && newAkValidation.error && !newAkValidation.error.isValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 {renderValidationError(newAkValidation)}
               </div>
@@ -250,9 +285,7 @@ const Templates = () => {
                 <Button variant="ghost" onClick={resetNewTemplate}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave}>
-                  Create Template
-                </Button>
+                <Button onClick={handleSave}>Create Template</Button>
               </div>
             </CardContent>
           </Card>
@@ -266,7 +299,7 @@ const Templates = () => {
               const isEditing = editingId === template.id;
 
               return (
-                <Card key={template.id} className={isEditing ? 'ring-1 ring-primary/30' : ''}>
+                <Card key={template.id} className={isEditing ? "ring-1 ring-primary/30" : ""}>
                   <CardContent className="p-4">
                     {isEditing ? (
                       // Edit Mode
@@ -276,8 +309,12 @@ const Templates = () => {
                             <Label htmlFor={`edit-name-${template.id}`}>Name</Label>
                             <Input
                               id={`edit-name-${template.id}`}
-                              value={editingTemplate?.name || ''}
-                              onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
+                              value={editingTemplate?.name || ""}
+                              onChange={(e) =>
+                                setEditingTemplate((prev) =>
+                                  prev ? { ...prev, name: e.target.value } : null,
+                                )
+                              }
                               autoFocus
                             />
                           </div>
@@ -285,8 +322,12 @@ const Templates = () => {
                             <Label htmlFor={`edit-description-${template.id}`}>Description</Label>
                             <Input
                               id={`edit-description-${template.id}`}
-                              value={editingTemplate?.description || ''}
-                              onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, description: e.target.value } : null)}
+                              value={editingTemplate?.description || ""}
+                              onChange={(e) =>
+                                setEditingTemplate((prev) =>
+                                  prev ? { ...prev, description: e.target.value } : null,
+                                )
+                              }
                             />
                           </div>
                         </div>
@@ -295,19 +336,27 @@ const Templates = () => {
                           <Label htmlFor={`edit-ak-${template.id}`}>Activation Key</Label>
                           <Textarea
                             id={`edit-ak-${template.id}`}
-                            value={editingTemplate?.activationKey || ''}
+                            value={editingTemplate?.activationKey || ""}
                             onChange={(e) => {
-                              setEditingTemplate(prev => prev ? { ...prev, activationKey: e.target.value } : null);
+                              setEditingTemplate((prev) =>
+                                prev ? { ...prev, activationKey: e.target.value } : null,
+                              );
                               if (editAkValidation.touched) {
-                                setEditAkValidation({ error: validateActivationKeyFormat(e.target.value), touched: true });
+                                setEditAkValidation({
+                                  error: validateActivationKeyFormat(e.target.value),
+                                  touched: true,
+                                });
                               }
                             }}
                             onBlur={() => {
                               if (editingTemplate?.activationKey.trim()) {
-                                setEditAkValidation({ error: validateActivationKeyFormat(editingTemplate.activationKey), touched: true });
+                                setEditAkValidation({
+                                  error: validateActivationKeyFormat(editingTemplate.activationKey),
+                                  touched: true,
+                                });
                               }
                             }}
-                            className={`font-mono text-xs h-24 resize-none ${editAkValidation.touched && editAkValidation.error && !editAkValidation.error.isValid ? 'border-destructive' : ''}`}
+                            className={`font-mono text-xs h-24 resize-none ${editAkValidation.touched && editAkValidation.error && !editAkValidation.error.isValid ? "border-destructive" : ""}`}
                           />
                           {renderValidationError(editAkValidation)}
                         </div>
@@ -323,15 +372,10 @@ const Templates = () => {
                             Delete
                           </Button>
                           <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              onClick={handleCancelEditing}
-                            >
+                            <Button variant="ghost" onClick={handleCancelEditing}>
                               Cancel
                             </Button>
-                            <Button onClick={handleUpdateTemplate}>
-                              Save Changes
-                            </Button>
+                            <Button onClick={handleUpdateTemplate}>Save Changes</Button>
                           </div>
                         </div>
                       </div>
@@ -350,7 +394,10 @@ const Templates = () => {
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p className="text-xs max-w-[200px]">This template contains a non-expired key. Consider using expired keys for safety.</p>
+                                  <p className="text-xs max-w-[200px]">
+                                    This template contains a non-expired key. Consider using expired
+                                    keys for safety.
+                                  </p>
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -358,7 +405,8 @@ const Templates = () => {
                           <p className="text-sm text-muted-foreground truncate mt-0.5">
                             {template.description || (
                               <span className="font-mono text-xs">
-                                {meta.algorithm} · {meta.isExpired ? 'Expired' : 'Expires'} {meta.expiryText}
+                                {meta.algorithm} · {meta.isExpired ? "Expired" : "Expires"}{" "}
+                                {meta.expiryText}
                               </span>
                             )}
                           </p>
