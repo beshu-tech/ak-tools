@@ -15,7 +15,8 @@ describe("App shell", () => {
   it("renders the brand and the three navigation links", () => {
     render(<App />);
     const nav = screen.getByRole("navigation");
-    expect(within(nav).getByText("AK")).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "AK Tools home" })).toHaveAttribute("href", "/");
+    expect(within(nav).getByText("Beshu")).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Editor" })).toHaveAttribute("href", "/");
     expect(within(nav).getByRole("link", { name: "Templates" })).toHaveAttribute(
       "href",
