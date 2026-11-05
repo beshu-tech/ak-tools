@@ -22,6 +22,7 @@ import {
   type DateClaim,
 } from "../../utils/payload";
 import { SigningStatus } from "../activationkey/SigningStatus";
+import { ValidityNotice } from "../activationkey/ValidityNotice";
 import { ActivationKeyMetadataDisplay } from "../activationkey/ActivationKeyMetadata";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PageHeader } from "../ui/page-header";
@@ -399,6 +400,11 @@ const ActivationKeyEditor = () => {
                     issuedDate={draftMetadata.issuedAt ?? undefined}
                     onIssuedChange={draft.payload ? setClaimDate("iat") : undefined}
                   />
+                )}
+                {draftMetadata && (
+                  <div className="mt-3">
+                    <ValidityNotice expiresAt={draftMetadata.expiresAt} pending={isDirty} />
+                  </div>
                 )}
 
                 {/* Signing Key Selection */}

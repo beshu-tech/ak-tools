@@ -507,6 +507,55 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     });
   });
 
+  describe("validity notice", () => {
+    const validity = () => screen.getByRole("note");
+
+    it("says for how long a valid key stays valid, in human units", async () => {
+      await open();
+      expect(validity()).toHaveAttribute("data-validity", "valid");
+      expect(validity()).toHaveTextContent(/Valid for \d+ years?.*until 10 Jun 2090/);
+    });
+
+    it("warns when the key is expired, and for how long", async () => {
+      seedKeyPairs([keyPair]);
+      const expired = await signToken(keyPair, { sub: "x" }, { exp: NOW - 3 * DAY });
+      const { user } = renderEditor();
+      await pasteToken(user, expired);
+      await monaco();
+      expect(validity()).toHaveAttribute("data-validity", "expired");
+      expect(validity()).toHaveTextContent("This activation key is expired.");
+      expect(validity()).toHaveTextContent(/It expired 3 days ago/);
+    });
+
+    it("follows the editor: a picked date changes it at once and says it applies on generate", async () => {
+      const { user } = await open();
+      expect(screen.queryByText(/applies once you generate/i)).toBeNull();
+      await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
+      await user.click(pickDay("20"));
+      expect(validity()).toHaveTextContent(/until 20 Jun 2090/);
+      expect(screen.getByText(/applies once you generate the key/i)).toBeInTheDocument();
+      await sign(user);
+      await waitFor(() => expect(screen.queryByText(/applies once you generate/i)).toBeNull());
+      expect(validity()).toHaveTextContent(/until 20 Jun 2090/);
+    });
+
+    it("turns into an expiry warning when exp is edited into the past, before generating", async () => {
+      const { editor } = await open();
+      editPayload(editor, { exp: NOW - DAY });
+      expect(validity()).toHaveAttribute("data-validity", "expired");
+      expect(validity()).toHaveTextContent(/It expired 1 day ago/);
+    });
+
+    it("says a key without exp never expires", async () => {
+      seedKeyPairs([keyPair]);
+      const { user } = renderEditor();
+      await pasteToken(user, fakeToken({ alg: "ES512", typ: "JWT" }, { sub: "x" }));
+      await monaco();
+      expect(validity()).toHaveAttribute("data-validity", "no-expiry");
+      expect(validity()).toHaveTextContent(/never expires/i);
+    });
+  });
+
   it("a key signed by another key can be re-signed with the selected one", async () => {
     seedKeyPairs([keyPair]);
     const foreign = await signToken(otherKey, { sub: "x" }, { exp: FUTURE });
