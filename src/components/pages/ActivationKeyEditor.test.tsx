@@ -388,6 +388,14 @@ describe("ActivationKeyEditor — what you see is what gets signed", () => {
     expect(screen.queryByText(/outdated/i)).toBeNull();
   });
 
+  it("Save as template is a quiet action in the Template section, not next to Generate", async () => {
+    await open();
+    const save = screen.getByRole("button", { name: /save as template/i });
+    expect(save).toBeEnabled();
+    expect(save.parentElement).toBe(screen.getByText("Template").parentElement);
+    expect(generate().parentElement).not.toContainElement(save);
+  });
+
   it("an edit to the payload enables Generate and marks the shown key outdated", async () => {
     const { editor, token, container } = await open();
     editPayload(editor, { sub: "changed" });
@@ -806,7 +814,14 @@ describe("ActivationKeyEditor — templates", () => {
       await screen.findByRole("button", { name: "Alpha" });
       fireEvent.change(editor, { target: { value: JSON.stringify({ sub: "a2", exp: PAST }) } });
 
-      await user.click(screen.getByRole("button", { name: /save as template/i }));
+      // Saving needs a generated key: the edit is not in the shown key yet.
+      const save = screen.getByRole("button", { name: /save as template/i });
+      expect(save).toBeDisabled();
+      expect(save).toHaveAttribute("title", expect.stringMatching(/generate the key first/i));
+      await sign(user);
+      await waitFor(() => expect(save).toBeEnabled());
+
+      await user.click(save);
       expect(await screen.findByLabelText(/^Name/)).toHaveValue("Alpha");
       await user.click(screen.getByRole("button", { name: "Update Template" }));
       expect(await screen.findByText(/update the existing template "Alpha"/i)).toBeInTheDocument();

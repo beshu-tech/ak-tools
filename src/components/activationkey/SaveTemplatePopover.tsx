@@ -5,16 +5,30 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
-export function SaveTemplatePopover({ saveTemplate: s }: { saveTemplate: SaveTemplateState }) {
+interface SaveTemplatePopoverProps {
+  saveTemplate: SaveTemplateState;
+  /** Why saving is not possible right now; the trigger is disabled and shows this. */
+  disabledReason?: string;
+}
+
+/** Quiet "Save as template" action: advanced and rarely used, so it is not a primary button. */
+export function SaveTemplatePopover({ saveTemplate: s, disabledReason }: SaveTemplatePopoverProps) {
   return (
     <Popover open={s.open} onOpenChange={s.setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" onClick={s.openDialog}>
-          <Save className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-my-1 h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+          onClick={s.openDialog}
+          disabled={!!disabledReason}
+          title={disabledReason}
+        >
+          <Save className="h-3.5 w-3.5" />
           Save as template
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="start">
+      <PopoverContent className="w-80" align="end">
         <div className="space-y-4">
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Save as Template</h4>

@@ -340,10 +340,20 @@ const ActivationKeyEditor = () => {
               <div className="ak-right-column">
                 {/* Template Switcher with Validation Status */}
                 <div className="space-y-2 pb-4 border-b mb-4">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <FileText className="h-3 w-3" />
-                    Template
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <FileText className="h-3 w-3" />
+                      Template
+                    </Label>
+                    <SaveTemplatePopover
+                      saveTemplate={saveTemplate}
+                      disabledReason={
+                        isDirty
+                          ? "Generate the key first: it does not include your edits"
+                          : undefined
+                      }
+                    />
+                  </div>
                   <div className="flex items-center gap-2">
                     {/* Validation indicator */}
                     {isDirty && (
@@ -425,8 +435,6 @@ const ActivationKeyEditor = () => {
                   >
                     Generate Activation Key
                   </Button>
-
-                  <SaveTemplatePopover saveTemplate={saveTemplate} />
                 </div>
 
                 <div className="mt-3">
