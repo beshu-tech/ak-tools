@@ -6,8 +6,6 @@ export interface EditorState {
   jwt: string;
   editorValue: string;
   algorithm: Algorithm;
-  expiryDate: Date | undefined;
-  issuedDate: Date | undefined;
   selectedKeyId: string;
   validation: ValidationResult | null;
   showCopied: boolean;
@@ -22,14 +20,10 @@ export type EditorAction =
         jwt: string;
         editorValue: string;
         algorithm?: Algorithm;
-        expiryDate?: Date;
-        issuedDate?: Date;
       };
     }
   | { type: "SET_EDITOR_VALUE"; payload: string }
   | { type: "SET_ALGORITHM"; payload: Algorithm }
-  | { type: "SET_EXPIRY_DATE"; payload: Date | undefined }
-  | { type: "SET_ISSUED_DATE"; payload: Date | undefined }
   | { type: "SET_SELECTED_KEY"; payload: string }
   | { type: "SET_VALIDATION"; payload: ValidationResult | null }
   | { type: "SHOW_COPIED" }
@@ -41,8 +35,6 @@ export const initialState: EditorState = {
   jwt: "",
   editorValue: "{}",
   algorithm: "ES512",
-  expiryDate: undefined,
-  issuedDate: undefined,
   selectedKeyId: "",
   validation: null,
   showCopied: false,
@@ -58,17 +50,11 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         jwt: action.payload.jwt,
         editorValue: action.payload.editorValue,
         algorithm: action.payload.algorithm ?? state.algorithm,
-        expiryDate: action.payload.expiryDate ?? state.expiryDate,
-        issuedDate: action.payload.issuedDate ?? state.issuedDate,
       };
     case "SET_EDITOR_VALUE":
       return { ...state, editorValue: action.payload };
     case "SET_ALGORITHM":
       return { ...state, algorithm: action.payload };
-    case "SET_EXPIRY_DATE":
-      return { ...state, expiryDate: action.payload };
-    case "SET_ISSUED_DATE":
-      return { ...state, issuedDate: action.payload };
     case "SET_SELECTED_KEY":
       return { ...state, selectedKeyId: action.payload };
     case "SET_VALIDATION":

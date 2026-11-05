@@ -83,6 +83,12 @@ const sign = async (user: UserEvent) => {
   return currentToken();
 };
 
+/** Replaces some claims of the payload in the editor, as typing in it would. */
+function editPayload(editor: HTMLTextAreaElement, changes: Record<string, unknown>) {
+  const payload = { ...JSON.parse(editor.value), ...changes };
+  fireEvent.change(editor, { target: { value: JSON.stringify(payload, null, 2) } });
+}
+
 /** Day cells are `button`s (react-day-picker 8) or `gridcell`s wrapping a button (9+). */
 function dayCells(dialog: HTMLElement) {
   return within(dialog).getAllByRole("button").concat(within(dialog).queryAllByRole("gridcell"));
@@ -216,7 +222,6 @@ describe("ActivationKeyEditor — signature validation", () => {
     await pasteToken(user, token);
     await monaco();
     expect(screen.getByRole("combobox")).toHaveTextContent("Signing key");
-    expect(screen.getByRole("button", { name: /generate activation key/i })).toBeEnabled();
   });
 
   it("re-validates when another signing key is selected", async () => {
@@ -255,15 +260,16 @@ describe("ActivationKeyEditor — signing", () => {
     await waitFor(() => expect(validationIndicator()).toBe("valid"));
   });
 
-  it("reports invalid JSON in the payload and keeps the current token", async () => {
+  it("disables signing while the payload is not valid JSON and keeps the current token", async () => {
     seedKeyPairs([keyPair]);
     const token = await signToken(keyPair, { sub: "x" }, { exp: FUTURE });
     const { user } = renderEditor();
     await pasteToken(user, token);
     fireEvent.change(await monaco(), { target: { value: "{ not json" } });
 
-    await user.click(screen.getByRole("button", { name: /generate activation key/i }));
-    expect(await screen.findByText("Invalid JSON payload")).toBeInTheDocument();
+    // Nothing can be signed: the button is disabled and the status says why.
+    expect(screen.getByRole("button", { name: /generate activation key/i })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(/not a valid JSON object/i);
     expect(currentToken()).toBe(token);
   });
 
@@ -272,7 +278,7 @@ describe("ActivationKeyEditor — signing", () => {
     const token = await signToken(keyPair, { sub: "x" }, { exp: FUTURE });
     const { user } = renderEditor();
     await pasteToken(user, token);
-    await monaco();
+    editPayload(await monaco(), { sub: "edited" });
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await user.click(screen.getByRole("button", { name: /generate activation key/i }));
@@ -290,7 +296,7 @@ describe("ActivationKeyEditor — signing", () => {
     const token = await signToken(keyPair, { sub: "x" }, { exp: FUTURE });
     const { user } = renderEditor();
     await pasteToken(user, token);
-    await monaco();
+    editPayload(await monaco(), { sub: "edited" });
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await user.click(screen.getByRole("button", { name: /generate activation key/i }));
@@ -327,10 +333,10 @@ describe("ActivationKeyEditor — date overrides", () => {
     const dialog = screen.getByRole("dialog");
     const days = dayCells(dialog).map((b) => b.textContent);
     expect(days).toEqual(expect.arrayContaining(["1", "15", "28"]));
+    // The calendar opens on the month of the date being edited.
+    expect(within(dialog).getByText("June 2090")).toBeInTheDocument();
   });
 
-  // The calendar opens on the current month, not on the selected date's month
-  // (UX quirk of the app): so only the day of month is asserted.
   it("applies a new expiry date picked in the calendar to exp", async () => {
     const { user } = await open();
     await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
@@ -351,6 +357,197 @@ describe("ActivationKeyEditor — date overrides", () => {
     await screen.findByText(new RegExp(`^${day} \\w{3} \\d{4}$`));
     const newToken = await sign(user);
     expect(dayOfMonth(decodePayload(newToken).iat as number)).toBe(Number(day));
+  });
+});
+
+describe("ActivationKeyEditor — what you see is what gets signed", () => {
+  const iat = Math.floor(new Date(2024, 2, 10, 12).getTime() / 1000);
+  const exp = Math.floor(new Date(2090, 5, 10, 15, 30).getTime() / 1000);
+
+  const generate = () => screen.getByRole("button", { name: /generate activation key/i });
+  const status = () => screen.getByRole("status");
+  const copy = (container: HTMLElement) =>
+    container.querySelector(".ak-copy-button") as HTMLElement;
+  const tokenBox = () => document.querySelector("[data-stale]") as HTMLElement;
+
+  async function open(extra: Record<string, unknown> = {}) {
+    seedKeyPairs([keyPair]);
+    const token = await signToken(keyPair, { sub: "x", ...extra }, { iat, exp });
+    const ctx = renderEditor();
+    await pasteToken(ctx.user, token);
+    const editor = await monaco();
+    return { ...ctx, token, editor };
+  }
+
+  it("starts up to date: nothing to generate, the key is copyable", async () => {
+    const { container } = await open();
+    expect(generate()).toBeDisabled();
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+    expect(tokenBox()).toHaveAttribute("data-stale", "false");
+    expect(copy(container)).toBeEnabled();
+    expect(screen.queryByText(/outdated/i)).toBeNull();
+  });
+
+  it("an edit to the payload enables Generate and marks the shown key outdated", async () => {
+    const { editor, token, container } = await open();
+    editPayload(editor, { sub: "changed" });
+
+    expect(generate()).toBeEnabled();
+    expect(status()).toHaveAttribute("data-status", "edited");
+    expect(screen.getByText(/outdated: generate to update/i)).toBeInTheDocument();
+    expect(tokenBox()).toHaveAttribute("data-stale", "true");
+    expect(copy(container)).toBeDisabled();
+    expect(screen.getByTitle(/edited since the key was last generated/i)).toBeInTheDocument();
+    expect(currentToken()).toBe(token);
+  });
+
+  it("formatting or key order alone is not an edit", async () => {
+    const { editor } = await open();
+    const payload = JSON.parse(editor.value);
+    const reordered = Object.fromEntries(Object.entries(payload).reverse());
+    fireEvent.change(editor, { target: { value: JSON.stringify(reordered) } });
+    expect(generate()).toBeDisabled();
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+  });
+
+  it("Generate signs the edit, then everything is up to date again", async () => {
+    const { editor, user, container } = await open();
+    editPayload(editor, { sub: "changed" });
+    const newToken = await sign(user);
+
+    expect(decodePayload(newToken).sub).toBe("changed");
+    expect(await verifies(newToken, keyPair)).toBe(true);
+    await waitFor(() => expect(generate()).toBeDisabled());
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+    expect(tokenBox()).toHaveAttribute("data-stale", "false");
+    expect(copy(container)).toBeEnabled();
+    expect(validationIndicator()).toBe("valid");
+  });
+
+  it("Revert drops the edits", async () => {
+    const { editor, user } = await open();
+    const original = JSON.parse(editor.value);
+    editPayload(editor, { sub: "changed" });
+    await user.click(screen.getByRole("button", { name: /revert/i }));
+
+    expect(JSON.parse((await monaco()).value)).toEqual(original);
+    expect(generate()).toBeDisabled();
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+  });
+
+  it("invalid JSON: Generate is disabled, the status explains, Revert recovers", async () => {
+    const { editor, user } = await open();
+    fireEvent.change(editor, { target: { value: "{ nope" } });
+
+    expect(generate()).toBeDisabled();
+    expect(status()).toHaveAttribute("data-status", "invalid-json");
+    // Dates cannot be picked into broken JSON: they stay readable but not editable.
+    expect(screen.getByText("10 Jun 2090")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "10 Jun 2090" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: /revert/i }));
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+  });
+
+  describe("date pickers edit the payload straight away", () => {
+    it("a picked expiry day changes exp in the editor, keeps the time of day, and outdates the key", async () => {
+      const { editor, user } = await open();
+      await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
+      await user.click(pickDay("20"));
+
+      const edited = JSON.parse((await monaco()).value);
+      const date = new Date(edited.exp * 1000);
+      expect([date.getFullYear(), date.getMonth(), date.getDate()]).toEqual([2090, 5, 20]);
+      expect([date.getHours(), date.getMinutes()]).toEqual([15, 30]);
+      expect(edited.iat).toBe(iat);
+      expect(editor).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "20 Jun 2090" })).toBeInTheDocument();
+      expect(generate()).toBeEnabled();
+      expect(tokenBox()).toHaveAttribute("data-stale", "true");
+    });
+
+    it("a picked issued day changes iat in the editor", async () => {
+      const { user } = await open();
+      await user.click(screen.getByRole("button", { name: "10 Mar 2024" }));
+      await user.click(pickDay("20"));
+
+      const edited = JSON.parse((await monaco()).value);
+      expect(new Date(edited.iat * 1000).getDate()).toBe(20);
+      expect(edited.exp).toBe(exp);
+      expect(generate()).toBeEnabled();
+    });
+
+    it("signing after a pick puts the picked date in the key", async () => {
+      const { user } = await open();
+      await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
+      await user.click(pickDay("20"));
+      const newToken = await sign(user);
+      expect(new Date((decodePayload(newToken).exp as number) * 1000).getDate()).toBe(20);
+      expect(status()).toHaveAttribute("data-status", "up-to-date");
+    });
+
+    it("editing exp in the JSON updates the date shown", async () => {
+      const { editor } = await open();
+      const newExp = Math.floor(new Date(2100, 0, 2, 15, 30).getTime() / 1000);
+      editPayload(editor, { exp: newExp });
+      expect(await screen.findByRole("button", { name: "2 Jan 2100" })).toBeInTheDocument();
+    });
+
+    it("the calendar opens on the month of the date being edited", async () => {
+      const { user } = await open();
+      await user.click(screen.getByRole("button", { name: "10 Jun 2090" }));
+      expect(within(screen.getByRole("dialog")).getByText("June 2090")).toBeInTheDocument();
+    });
+  });
+
+  it("a key signed by another key can be re-signed with the selected one", async () => {
+    seedKeyPairs([keyPair]);
+    const foreign = await signToken(otherKey, { sub: "x" }, { exp: FUTURE });
+    const { user } = renderEditor();
+    await pasteToken(user, foreign);
+    await monaco();
+
+    expect(status()).toHaveAttribute("data-status", "key-mismatch");
+    expect(generate()).toBeEnabled();
+    const resigned = await sign(user);
+    expect(await verifies(resigned, keyPair)).toBe(true);
+    await waitFor(() => expect(status()).toHaveAttribute("data-status", "up-to-date"));
+  });
+
+  it("an expired key with the right signing key is not a signature problem", async () => {
+    seedKeyPairs([keyPair]);
+    const expired = await signToken(keyPair, { sub: "x" }, { exp: NOW - DAY });
+    const { user } = renderEditor();
+    await pasteToken(user, expired);
+    await monaco();
+    await waitFor(() => expect(validationIndicator()).toBe("invalid"));
+    expect(status()).toHaveAttribute("data-status", "up-to-date");
+    expect(generate()).toBeDisabled();
+  });
+
+  it("without a signing key it says so and links to the Keys page", async () => {
+    const token = await signToken(keyPair, { sub: "x" }, { exp: FUTURE });
+    const { user } = renderEditor();
+    await pasteToken(user, token);
+    const editor = await monaco();
+    editPayload(editor, { sub: "changed" });
+
+    expect(generate()).toBeDisabled();
+    expect(status()).toHaveAttribute("data-status", "no-key");
+    expect(within(status()).getByRole("link", { name: /go to keys/i })).toHaveAttribute(
+      "href",
+      "/keys",
+    );
+  });
+
+  it("a payload without exp is signed without exp", async () => {
+    seedKeyPairs([keyPair]);
+    const bare = fakeToken({ alg: "ES512", typ: "JWT" }, { sub: "x" });
+    const { user } = renderEditor();
+    await pasteToken(user, bare);
+    editPayload(await monaco(), { sub: "y" });
+    const signed = await sign(user);
+    expect(decodePayload(signed).sub).toBe("y");
+    expect(decodePayload(signed)).not.toHaveProperty("exp");
   });
 });
 

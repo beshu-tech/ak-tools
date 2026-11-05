@@ -5,31 +5,21 @@ const reduce = (...actions: Parameters<typeof editorReducer>[1][]) =>
   actions.reduce(editorReducer, initialState);
 
 describe("editorReducer", () => {
-  it("SET_JWT keeps previous algorithm and dates when the payload omits them", () => {
-    const withDates = reduce({ type: "SET_EXPIRY_DATE", payload: new Date(2030, 0, 1) });
-    const next = editorReducer(withDates, {
+  it("SET_JWT keeps the previous algorithm when none is given", () => {
+    const next = editorReducer(initialState, {
       type: "SET_JWT",
       payload: { jwt: "a.b.c", editorValue: "{}" },
     });
     expect(next.jwt).toBe("a.b.c");
     expect(next.algorithm).toBe("ES512");
-    expect(next.expiryDate).toEqual(new Date(2030, 0, 1));
   });
 
-  it("SET_JWT overrides algorithm and dates when provided", () => {
+  it("SET_JWT overrides the algorithm when provided", () => {
     const next = reduce({
       type: "SET_JWT",
-      payload: {
-        jwt: "x",
-        editorValue: '{"a":1}',
-        algorithm: "ES256",
-        expiryDate: new Date(2031, 1, 2),
-        issuedDate: new Date(2029, 3, 4),
-      },
+      payload: { jwt: "x", editorValue: '{"a":1}', algorithm: "ES256" },
     });
     expect(next).toMatchObject({ algorithm: "ES256", editorValue: '{"a":1}' });
-    expect(next.expiryDate).toEqual(new Date(2031, 1, 2));
-    expect(next.issuedDate).toEqual(new Date(2029, 3, 4));
   });
 
   it("CLEAR resets everything except the selected signing key", () => {

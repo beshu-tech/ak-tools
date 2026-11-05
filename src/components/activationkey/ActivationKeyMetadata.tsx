@@ -51,11 +51,19 @@ const DateField: React.FC<DateFieldProps> = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align={align}>
-            <Calendar mode="single" selected={value} onSelect={onChange} autoFocus />
+            <Calendar
+              mode="single"
+              selected={value}
+              defaultMonth={value}
+              onSelect={onChange}
+              autoFocus
+            />
           </PopoverContent>
         </Popover>
       ) : (
-        <div className="text-sm text-muted-foreground">{fallbackText}</div>
+        <div className="text-sm text-muted-foreground">
+          {value ? format(value, "d MMM yyyy") : fallbackText}
+        </div>
       )}
     </div>
   </div>

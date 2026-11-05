@@ -4,15 +4,24 @@ import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import Editor from "@monaco-editor/react";
 import { Button } from "../ui/button";
-import { X, Check, Copy, FileText, Key } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { X, Check, Pencil, AlertTriangle, Copy, FileText, Key } from "lucide-react";
 import { Algorithm, SUPPORTED_ALGORITHMS } from "../../types/activationKey";
 import {
   getJwtMetadata,
   getPayloadJson,
   signJWT,
-  toEpochSeconds,
   validateJWTSignature,
 } from "../../utils/activationKey";
+import {
+  canGenerate,
+  claimDate,
+  deriveDraft,
+  signingStatus,
+  withClaimDate,
+  type DateClaim,
+} from "../../utils/payload";
+import { SigningStatus } from "../activationkey/SigningStatus";
 import { ActivationKeyMetadataDisplay } from "../activationkey/ActivationKeyMetadata";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PageHeader } from "../ui/page-header";
@@ -44,31 +53,17 @@ const ActivationKeyEditor = () => {
   // Track source template (when loaded from a template)
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(null);
 
-  // Track original editor value for dirty detection
-  const originalEditorValueRef = useRef<string>("{}");
-
   // Ref to store handleInputChange to avoid effect dependency issues
   const handleInputChangeRef = useRef<((value: string) => Promise<void>) | undefined>(undefined);
 
   // Template switcher state
   const [templateSwitcherOpen, setTemplateSwitcherOpen] = useState(false);
 
-  const {
-    inputValue,
-    jwt,
-    editorValue,
-    algorithm,
-    expiryDate,
-    issuedDate,
-    selectedKeyId,
-    validation,
-    showCopied,
-  } = state;
+  const { inputValue, jwt, editorValue, algorithm, selectedKeyId, validation, showCopied } = state;
 
-  // Compute dirty state with useMemo to avoid unnecessary recalculations
-  const isDirty = useMemo(() => {
-    return editorValue !== originalEditorValueRef.current && jwt !== "";
-  }, [editorValue, jwt]);
+  // The JSON in the editor is the source of truth; the key is only what was last signed.
+  const draft = useMemo(() => deriveDraft(editorValue, jwt), [editorValue, jwt]);
+  const isDirty = draft.hasEdits;
 
   // Check if current JWT is expired
   const jwtMetadata = useMemo(() => (jwt ? getJwtMetadata(jwt) : null), [jwt]);
@@ -77,6 +72,36 @@ const ActivationKeyEditor = () => {
     () => (jwtMetadata?.expiresAt ? jwtMetadata.expiresAt < new Date() : false),
     [jwtMetadata],
   );
+
+  // Dates shown next to the editor come from the editor, so they never disagree with it.
+  const draftMetadata = useMemo(() => {
+    if (!jwtMetadata || !draft.payload) return jwtMetadata;
+    return {
+      ...jwtMetadata,
+      issuedAt: claimDate(draft.payload, "iat") ?? null,
+      expiresAt: claimDate(draft.payload, "exp") ?? null,
+    };
+  }, [jwtMetadata, draft.payload]);
+
+  const setClaimDate = useCallback(
+    (claim: DateClaim) => (date: Date | undefined) => {
+      if (!date) return;
+      const next = withClaimDate(editorValue, claim, date);
+      if (next) dispatch({ type: "SET_EDITOR_VALUE", payload: next });
+    },
+    [editorValue],
+  );
+
+  const revertEdits = useCallback(
+    () => dispatch({ type: "SET_EDITOR_VALUE", payload: getPayloadJson(jwt) }),
+    [jwt],
+  );
+
+  const status = signingStatus({
+    draft,
+    hasSigningKey: !!getKeyPairById(selectedKeyId),
+    signatureMismatch: validation?.errors?.signature === true,
+  });
 
   // Set initial selected key when keyPairs load
   useEffect(() => {
@@ -134,19 +159,9 @@ const ActivationKeyEditor = () => {
       // Try to parse as JWT
       const metadata = getJwtMetadata(value);
       let newAlgorithm: Algorithm | undefined;
-      let newExpiryDate: Date | undefined;
-      let newIssuedDate: Date | undefined;
 
-      if (metadata) {
-        if (metadata.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
-          newAlgorithm = metadata.algorithm as Algorithm;
-        }
-        if (metadata.expiresAt) {
-          newExpiryDate = new Date(metadata.expiresAt);
-        }
-        if (metadata.issuedAt) {
-          newIssuedDate = new Date(metadata.issuedAt);
-        }
+      if (metadata?.algorithm && SUPPORTED_ALGORITHMS.includes(metadata.algorithm as Algorithm)) {
+        newAlgorithm = metadata.algorithm as Algorithm;
       }
 
       const payloadOnly = getPayloadJson(value);
@@ -157,13 +172,8 @@ const ActivationKeyEditor = () => {
           jwt: value,
           editorValue: payloadOnly,
           algorithm: newAlgorithm,
-          expiryDate: newExpiryDate,
-          issuedDate: newIssuedDate,
         },
       });
-
-      // Track original value for dirty detection
-      originalEditorValueRef.current = payloadOnly;
 
       // Validate signature
       const selectedKey = getKeyPairById(selectedKeyId);
@@ -200,31 +210,15 @@ const ActivationKeyEditor = () => {
     const selectedKey = getKeyPairById(selectedKeyId);
     if (!selectedKey) return;
 
-    let payload;
-    try {
-      payload = JSON.parse(editorValue);
-    } catch {
+    const payload = draft.payload;
+    if (!payload) {
       showError("Invalid JSON payload");
       return;
     }
 
-    // Only override exp if a new expiry date is selected
-    if (expiryDate) {
-      payload.exp = toEpochSeconds(expiryDate);
-    }
-
-    // Only override iat if a new issued date is selected
-    if (issuedDate) {
-      payload.iat = toEpochSeconds(issuedDate);
-    }
-
     try {
-      const newToken = await signJWT(
-        payload,
-        algorithm,
-        selectedKey,
-        expiryDate || (payload.exp ? new Date(payload.exp * 1000) : new Date()),
-      );
+      const exp = typeof payload.exp === "number" ? new Date(payload.exp * 1000) : undefined;
+      const newToken = await signJWT(payload, algorithm, selectedKey, exp);
 
       dispatch({
         type: "SET_JWT",
@@ -234,7 +228,7 @@ const ActivationKeyEditor = () => {
       console.error("Signing error:", error);
       showError("Failed to sign activation key");
     }
-  }, [selectedKeyId, editorValue, expiryDate, issuedDate, algorithm, getKeyPairById, showError]);
+  }, [selectedKeyId, draft.payload, algorithm, getKeyPairById, showError]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     await navigator.clipboard.writeText(text);
@@ -245,7 +239,6 @@ const ActivationKeyEditor = () => {
   const clearJwt = useCallback(() => {
     dispatch({ type: "CLEAR" });
     setSourceTemplateId(null);
-    originalEditorValueRef.current = "{}";
     if (keyPairs.length > 0) {
       dispatch({ type: "SET_SELECTED_KEY", payload: keyPairs[0].id });
     }
@@ -353,7 +346,15 @@ const ActivationKeyEditor = () => {
                   </Label>
                   <div className="flex items-center gap-2">
                     {/* Validation indicator */}
-                    {validation && (
+                    {isDirty && (
+                      <div
+                        title="Edited since the key was last generated"
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 text-amber-500"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </div>
+                    )}
+                    {!isDirty && validation && (
                       <div
                         className={`flex items-center justify-center w-8 h-8 rounded-full ${
                           validation.isValid
@@ -380,13 +381,13 @@ const ActivationKeyEditor = () => {
                 </div>
 
                 {/* Metadata Display */}
-                {jwtMetadata && (
+                {draftMetadata && (
                   <ActivationKeyMetadataDisplay
-                    metadata={jwtMetadata}
-                    expiryDate={expiryDate}
-                    onExpiryChange={(date) => dispatch({ type: "SET_EXPIRY_DATE", payload: date })}
-                    issuedDate={issuedDate}
-                    onIssuedChange={(date) => dispatch({ type: "SET_ISSUED_DATE", payload: date })}
+                    metadata={draftMetadata}
+                    expiryDate={draftMetadata.expiresAt ?? undefined}
+                    onExpiryChange={draft.payload ? setClaimDate("exp") : undefined}
+                    issuedDate={draftMetadata.issuedAt ?? undefined}
+                    onIssuedChange={draft.payload ? setClaimDate("iat") : undefined}
                   />
                 )}
 
@@ -419,7 +420,7 @@ const ActivationKeyEditor = () => {
                 <div className="ak-controls mt-4">
                   <Button
                     onClick={handleSign}
-                    disabled={!selectedKeyId || !editorValue}
+                    disabled={!canGenerate(status)}
                     className="sign-button"
                   >
                     Generate Activation Key
@@ -428,21 +429,45 @@ const ActivationKeyEditor = () => {
                   <SaveTemplatePopover saveTemplate={saveTemplate} />
                 </div>
 
+                <div className="mt-3">
+                  <SigningStatus status={status} onRevert={revertEdits} />
+                </div>
+
                 {jwt && (
-                  <div className="ak-output">
-                    <div className="ak-output-text">{jwt}</div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="ak-copy-button"
-                      onClick={() => copyToClipboard(jwt)}
-                    >
-                      {showCopied ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
+                  <div className="ak-output space-y-2">
+                    {isDirty && (
+                      <span className="inline-flex items-center gap-1.5 rounded-sm bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Outdated: generate to update
+                      </span>
+                    )}
+                    <div className="relative">
+                      <div
+                        className={cn("ak-output-text", isDirty && "opacity-50")}
+                        data-stale={isDirty}
+                      >
+                        {jwt}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="ak-copy-button"
+                        aria-label="Copy activation key"
+                        disabled={isDirty}
+                        title={
+                          isDirty
+                            ? "Generate the key first: it does not include your edits"
+                            : undefined
+                        }
+                        onClick={() => copyToClipboard(jwt)}
+                      >
+                        {showCopied ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

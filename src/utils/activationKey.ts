@@ -186,7 +186,8 @@ export const signJWT = async (
   payload: jose.JWTPayload,
   algorithm: Algorithm,
   keyPair: KeyPair,
-  expiryDate: Date,
+  /** When omitted the token gets the `exp` of the payload, if any. */
+  expiryDate?: Date,
 ): Promise<string> => {
   try {
     if (!keyPair?.privateKey) {
@@ -195,14 +196,13 @@ export const signJWT = async (
     assertPkcs8(keyPair.privateKey);
     const privateKey = await jose.importPKCS8(keyPair.privateKey, algorithm);
 
-    const jwt = await new jose.SignJWT(payload)
+    const builder = new jose.SignJWT(payload)
       .setProtectedHeader({ alg: algorithm })
       // Honour an explicit iat (e.g. the Issued date picker); default to now.
-      .setIssuedAt(payload.iat)
-      .setExpirationTime(expiryDate)
-      .sign(privateKey);
+      .setIssuedAt(payload.iat);
+    if (expiryDate) builder.setExpirationTime(expiryDate);
 
-    return jwt;
+    return await builder.sign(privateKey);
   } catch (error) {
     console.error("Signing error:", error);
     throw error;
@@ -235,13 +235,13 @@ export const validateJWTSignature = async (
       errors: undefined,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    // An expired token still has a good signature: only other failures are signature problems.
+    const expired = (error as { code?: string })?.code === "ERR_JWT_EXPIRED";
     return {
       isValid: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      errors: {
-        signature: true,
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      error: message,
+      errors: { signature: !expired, expired, message },
     };
   }
 };
