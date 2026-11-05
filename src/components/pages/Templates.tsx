@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useTemplates, AkTemplate } from "../../hooks/use-templates";
 import { useToast } from "../../hooks/use-toast";
+import { useConfirmedDelete } from "../../hooks/use-confirmed-delete";
 import { useCrudState } from "../../hooks/use-crud-state";
 import {
   getJwtMetadata,
@@ -43,7 +44,7 @@ interface ValidationState {
 const Templates = () => {
   const navigate = useNavigate();
   const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplates();
-  const { success, error: showError, confirm } = useToast();
+  const { success, error: showError } = useToast();
 
   const {
     isAddingNew,
@@ -114,13 +115,10 @@ const Templates = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = await confirm("Delete this template?");
-    if (confirmed) {
-      deleteTemplate(id);
-      success("Template deleted");
-    }
-  };
+  const handleDelete = useConfirmedDelete(deleteTemplate, {
+    confirmMessage: "Delete this template?",
+    successMessage: "Template deleted",
+  });
 
   const handleToggleEdit = (template: AkTemplate) => {
     toggleEdit(template);

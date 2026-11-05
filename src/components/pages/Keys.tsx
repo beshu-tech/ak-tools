@@ -21,6 +21,7 @@ import { generateEC512KeyPair } from "../../utils/activationKey";
 import { exportKeyPairToZip, importKeyPairFromZip } from "../../utils/file-utils";
 import { useKeyPairs } from "../../hooks/use-key-pairs";
 import { useToast } from "../../hooks/use-toast";
+import { useConfirmedDelete } from "../../hooks/use-confirmed-delete";
 import { useCrudState } from "../../hooks/use-crud-state";
 import "./Keys.css";
 
@@ -33,7 +34,7 @@ const EMPTY_KEY_PAIR: Omit<KeyPair, "id"> = {
 
 const Keys = () => {
   const { keyPairs, addKeyPair, updateKeyPair, deleteKeyPair } = useKeyPairs();
-  const { success, error: showError, confirm } = useToast();
+  const { success, error: showError } = useToast();
 
   const {
     isAddingNew,
@@ -75,13 +76,10 @@ const Keys = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = await confirm("Are you sure you want to delete this key pair?");
-    if (confirmed) {
-      deleteKeyPair(id);
-      success("Key pair deleted");
-    }
-  };
+  const handleDelete = useConfirmedDelete(deleteKeyPair, {
+    confirmMessage: "Are you sure you want to delete this key pair?",
+    successMessage: "Key pair deleted",
+  });
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
