@@ -251,9 +251,7 @@ describe('generateEC512KeyPair', () => {
 })
 
 describe('extractPublicKeyFromPrivate', () => {
-  // KNOWN BUG: exportSPKI rejects a private key ("key is not a public key").
-  // The helper is unused in the app. Flip to `it` once it is fixed or deleted.
-  it.fails('derives the matching SPKI public key', async () => {
+  it('derives the matching SPKI public key', async () => {
     const derived = await extractPublicKeyFromPrivate(keyPair.privateKey)
     const token = await signJWT({}, 'ES512', keyPair, new Date(Date.now() + 60_000))
     const key = await jose.importSPKI(derived, 'ES512')

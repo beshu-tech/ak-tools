@@ -319,9 +319,7 @@ describe('ActivationKeyEditor — date overrides', () => {
     expect(await verifies(newToken, keyPair)).toBe(true)
   })
 
-  // BUG (app): signJWT always calls `.setIssuedAt()`, which overwrites the iat
-  // taken from the picked issued date. Remove `.fails` when that is fixed.
-  it.fails('applies a new issued date picked in the calendar to iat', async () => {
+  it('applies a new issued date picked in the calendar to iat', async () => {
     const { user } = await open()
     await user.click(screen.getByRole('button', { name: '10 Mar 2024' }))
     const day = dayToPick()

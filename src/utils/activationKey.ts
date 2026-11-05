@@ -210,7 +210,8 @@ export const signJWT = async (
 
     const jwt = await new SignJWT(payload)
       .setProtectedHeader({ alg: algorithm })
-      .setIssuedAt()
+      // Honour an explicit iat (e.g. the Issued date picker); default to now.
+      .setIssuedAt(payload.iat)
       .setExpirationTime(expiryDate)
       .sign(privateKey);
 
@@ -301,9 +302,11 @@ export const generateEC512KeyPair = async (): Promise<KeyPair> => {
 // Optional helper to extract public key from private key
 export const extractPublicKeyFromPrivate = async (privateKeyString: string): Promise<string> => {
   try {
-    const privateKey = await jose.importPKCS8(privateKeyString, 'ES512');
-    const publicKey = await jose.exportSPKI(privateKey);
-    return publicKey;
+    const privateKey = await jose.importPKCS8(privateKeyString, 'ES512', { extractable: true });
+    // A private key cannot be exported as SPKI directly: drop the private part of its JWK first.
+    const jwk = await jose.exportJWK(privateKey);
+    delete jwk.d;
+    return await jose.exportSPKI((await jose.importJWK(jwk, 'ES512')) as CryptoKey);
   } catch (error) {
     console.error('Public key extraction error:', error);
     throw error;
