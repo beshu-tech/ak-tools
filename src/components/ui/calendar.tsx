@@ -1,24 +1,101 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, useDayPicker, type MonthCaptionProps } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+const MIN_YEAR = 1;
+const MAX_YEAR = 9999;
+
+/** Parses a typed year; `undefined` when it is not a whole year in 1..9999. */
+function parseYear(text: string): number | undefined {
+  const trimmed = text.trim();
+  if (!/^\d{1,4}$/.test(trimmed)) return undefined;
+  const year = Number(trimmed);
+  return year >= MIN_YEAR && year <= MAX_YEAR ? year : undefined;
+}
+
+/**
+ * Month caption with the month name and a year field the user can type into.
+ * Commits on Enter or blur; invalid text and Escape revert to the visible year.
+ */
+function MonthCaption({ calendarMonth, displayIndex, ...divProps }: MonthCaptionProps) {
+  const { goToMonth, formatters } = useDayPicker();
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const visibleYear = calendarMonth.date.getFullYear();
+
+  const commit = () => {
+    const year = draft === null ? undefined : parseYear(draft);
+    setDraft(null);
+    if (year === undefined || year === visibleYear) return;
+    // setFullYear (not the Date constructor) so that years 0..99 stay literal.
+    const target = new Date(calendarMonth.date.getTime());
+    target.setFullYear(year, calendarMonth.date.getMonth() - displayIndex, 1);
+    goToMonth(target);
+  };
+
+  return (
+    <div {...divProps}>
+      <div className="flex items-center justify-center gap-1">
+        <span role="status" aria-live="polite" className="text-sm font-medium">
+          {formatters.formatMonthDropdown(calendarMonth.date)}
+        </span>
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          aria-label="Year"
+          className="h-7 w-16 rounded-md border border-input bg-background px-1 text-center text-sm font-medium tabular-nums ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          value={draft ?? String(visibleYear)}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setDraft(null);
+            }
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  month,
+  defaultMonth,
+  onMonthChange,
+  components,
+  ...props
+}: CalendarProps) {
+  // The visible month is controlled so the arrows and the typed year stay in sync.
+  const [innerMonth, setInnerMonth] = React.useState<Date>(() => defaultMonth ?? new Date());
+  const visibleMonth = month ?? innerMonth;
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       {...props}
+      month={visibleMonth}
+      onMonthChange={(next) => {
+        setInnerMonth(next);
+        onMonthChange?.(next);
+      }}
+      navLayout="around"
       classNames={{
         months: "relative flex flex-col sm:flex-row gap-4",
-        month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center h-7",
-        caption_label: "text-sm font-medium",
-        nav: "absolute inset-x-0 top-0 z-10 flex items-center justify-between",
+        month: "grid grid-cols-[auto_1fr_auto] items-center gap-y-4",
+        month_caption: "min-w-0",
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
@@ -27,7 +104,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
         ),
-        month_grid: "w-full border-collapse space-y-1",
+        month_grid: "col-span-full w-full border-collapse space-y-1",
         weekdays: "flex",
         weekday: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
         week: "flex w-full mt-2",
@@ -48,12 +125,14 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         ...classNames,
       }}
       components={{
+        MonthCaption,
         Chevron: ({ orientation, ...props }) =>
           orientation === "left" ? (
             <ChevronLeft className="h-4 w-4" {...props} />
           ) : (
             <ChevronRight className="h-4 w-4" {...props} />
           ),
+        ...components,
       }}
     />
   );
