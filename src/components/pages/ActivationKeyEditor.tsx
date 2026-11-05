@@ -291,6 +291,18 @@ const ActivationKeyEditor = () => {
         description="Create, decode, and validate Activation Keys"
       />
 
+      {!jwt && (
+        <p className="-mt-4 mb-8 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          An Activation Key is a signed token (a JWT, signed with ES512) that unlocks a product
+          edition, such as ReadonlyREST or Anaphora. It states who the licence is for, which edition
+          it grants, which cluster it covers, and when it was issued and when it expires. The
+          product checks the signature with the matching public key, so it can verify a key offline,
+          with no licence server. Any change to the contents breaks the signature, so a key cannot
+          be edited without the private key. Use this tool to decode a key, change its claims, and
+          sign it again with a private key you hold.
+        </p>
+      )}
+
       {!jwt ? (
         <Card>
           <CardContent className="space-y-4 p-4 sm:p-6">
