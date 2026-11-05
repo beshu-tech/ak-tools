@@ -1,17 +1,31 @@
 import * as jose from "jose";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
-import { ActivationKeyMetadata, KeyPair, Algorithm } from "../types/activationKey";
-import { SignJWT } from "jose";
-import { generateKeyPair } from "jose";
+import {
+  ActivationKeyMetadata,
+  KeyPair,
+  Algorithm,
+  ValidationResult,
+} from "../types/activationKey";
+
+/** Epoch seconds as used by the JWT `iat` / `exp` claims. */
+export const toEpochSeconds = (date: Date): number => Math.floor(date.getTime() / 1000);
+
+const fromEpochSeconds = (seconds: number | undefined): Date | null =>
+  seconds ? new Date(seconds * 1000) : null;
+
+/** Reads algorithm, issue and expiry dates. Throws when `token` is not a decodable JWT. */
+const readMetadata = (token: string): ActivationKeyMetadata => {
+  const claims = jose.decodeJwt(token);
+  return {
+    algorithm: jose.decodeProtectedHeader(token).alg ?? null,
+    issuedAt: fromEpochSeconds(claims.iat),
+    expiresAt: fromEpochSeconds(claims.exp),
+  };
+};
 
 export const getJwtMetadata = (token: string): ActivationKeyMetadata | null => {
   try {
-    const decoded = jose.decodeJwt(token);
-    return {
-      algorithm: jose.decodeProtectedHeader(token).alg ?? null,
-      issuedAt: decoded.iat ? new Date(decoded.iat * 1000) : null,
-      expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : null,
-    };
+    return readMetadata(token);
   } catch {
     return null;
   }
@@ -122,17 +136,7 @@ export const validateActivationKeyFormat = (token: string): AkValidationResult =
 
   // If we get here, try to extract full metadata
   try {
-    const decoded = jose.decodeJwt(trimmedToken);
-    const header = jose.decodeProtectedHeader(trimmedToken);
-
-    return {
-      isValid: true,
-      metadata: {
-        algorithm: header.alg ?? null,
-        issuedAt: decoded.iat ? new Date(decoded.iat * 1000) : null,
-        expiresAt: decoded.exp ? new Date(decoded.exp * 1000) : null,
-      },
-    };
+    return { isValid: true, metadata: readMetadata(trimmedToken) };
   } catch (e) {
     return {
       isValid: false,
@@ -161,32 +165,21 @@ export const formatRelativeTime = (date: Date | null, isExpiry = false): string 
   return `${formatDistanceToNow(date, { addSuffix: true })}`;
 };
 
-export const decodeJWT = async (token: string): Promise<string> => {
+/** Pretty-printed JWT payload, or "{}" when `token` is not decodable. */
+export const getPayloadJson = (token: string): string => {
   try {
-    const decoded = jose.decodeJwt(token);
-    const header = jose.decodeProtectedHeader(token);
-
-    return JSON.stringify(
-      {
-        header,
-        payload: decoded,
-      },
-      null,
-      2,
-    );
+    return JSON.stringify(jose.decodeJwt(token), null, 2);
   } catch {
     return "{}";
   }
 };
 
-const checkPrivateKey = async (key: string): Promise<string> => {
-  // Check if key is in SEC1 format
-  if (key.includes("-----BEGIN EC PRIVATE KEY-----")) {
+const assertPkcs8 = (privateKey: string): void => {
+  if (privateKey.includes("-----BEGIN EC PRIVATE KEY-----")) {
     throw new Error(
       "Only PKCS8 format private keys are supported. Please convert your SEC1 key to PKCS8 format.",
     );
   }
-  return key;
 };
 
 export const signJWT = async (
@@ -199,12 +192,10 @@ export const signJWT = async (
     if (!keyPair?.privateKey) {
       throw new Error("Private key is required");
     }
-    // Normalize the private key format if needed
-    const normalizedKey = await checkPrivateKey(keyPair.privateKey);
-    // Get the correct curve for the algorithm
-    const privateKey = await jose.importPKCS8(normalizedKey, "ES512");
+    assertPkcs8(keyPair.privateKey);
+    const privateKey = await jose.importPKCS8(keyPair.privateKey, algorithm);
 
-    const jwt = await new SignJWT(payload)
+    const jwt = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: algorithm })
       // Honour an explicit iat (e.g. the Issued date picker); default to now.
       .setIssuedAt(payload.iat)
@@ -217,17 +208,6 @@ export const signJWT = async (
     throw error;
   }
 };
-
-export interface ValidationResult {
-  isValid: boolean;
-  error: string | null;
-  keyName?: string;
-  errors?: {
-    expired?: boolean;
-    signature?: boolean;
-    message?: string;
-  };
-}
 
 export const validateJWTSignature = async (
   jwt: string,
@@ -245,12 +225,8 @@ export const validateJWTSignature = async (
   }
 
   try {
-    const [header] = jwt.split(".");
-    const decodedHeader = JSON.parse(atob(header));
-    const algorithm = decodedHeader.alg;
-
-    const normalizedKey = await checkPrivateKey(keyPair.publicKey);
-    const publicKey = await jose.importSPKI(normalizedKey, algorithm);
+    const { alg } = jose.decodeProtectedHeader(jwt);
+    const publicKey = await jose.importSPKI(keyPair.publicKey, alg ?? "");
     await jose.jwtVerify(jwt, publicKey);
 
     return {
@@ -272,7 +248,7 @@ export const validateJWTSignature = async (
 
 export const generateEC512KeyPair = async (): Promise<KeyPair> => {
   try {
-    const { privateKey, publicKey } = await generateKeyPair("ES512", {
+    const { privateKey, publicKey } = await jose.generateKeyPair("ES512", {
       extractable: true, // Make sure keys are extractable
     });
 

@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import type { KeyPair } from "../types/activationKey";
 import { fakeToken, makeKeyPair, SEC1_PRIVATE_KEY, signToken } from "../test/fixtures";
 import {
-  decodeJWT,
+  getPayloadJson,
   extractPublicKeyFromPrivate,
   formatRelativeTime,
   generateEC512KeyPair,
@@ -167,16 +167,16 @@ describe("formatRelativeTime", () => {
   });
 });
 
-describe("decodeJWT", () => {
-  it("returns pretty-printed header and payload", async () => {
+describe("getPayloadJson", () => {
+  it("returns the pretty-printed payload only", async () => {
     const token = await signToken(keyPair, { sub: "abc", n: 1 });
-    const out = JSON.parse(await decodeJWT(token));
-    expect(out.header).toMatchObject({ alg: "ES512", typ: "JWT" });
-    expect(out.payload).toMatchObject({ sub: "abc", n: 1 });
-    expect(await decodeJWT(token)).toContain("\n  ");
+    const payload = JSON.parse(getPayloadJson(token));
+    expect(payload).toMatchObject({ sub: "abc", n: 1 });
+    expect(payload.header).toBeUndefined();
+    expect(getPayloadJson(token)).toContain("\n  ");
   });
-  it("returns {} for garbage", async () => {
-    expect(await decodeJWT("garbage")).toBe("{}");
+  it("returns {} for garbage", () => {
+    expect(getPayloadJson("garbage")).toBe("{}");
   });
 });
 
@@ -188,7 +188,7 @@ describe("signJWT / validateJWTSignature round trip", () => {
     const meta = getJwtMetadata(token);
     expect(meta?.algorithm).toBe("ES512");
     expect(meta?.expiresAt?.getTime()).toBe(Math.floor(exp.getTime() / 1000) * 1000);
-    expect(JSON.parse(await decodeJWT(token)).payload).toMatchObject({
+    expect(JSON.parse(getPayloadJson(token))).toMatchObject({
       sub: "u1",
       custom: { a: [1, 2] },
     });
@@ -212,6 +212,25 @@ describe("signJWT / validateJWTSignature round trip", () => {
     const r = await validateJWTSignature(token, keyPair);
     expect(r.isValid).toBe(false);
     expect(r.error).toMatch(/exp/i);
+  });
+
+  it("verifies tokens whose base64url header contains - or _", async () => {
+    // A protected header with a "-" in its base64url form (extra claim chosen to produce one)
+    const key = await jose.importPKCS8(keyPair.privateKey, "ES512");
+    let token = "";
+    for (let i = 0; i < 200 && !/^[^.]*[-_]/.test(token); i++) {
+      token = await new jose.SignJWT({ sub: "x" })
+        .setProtectedHeader({ alg: "ES512", kid: `k${"?>".repeat(i)}` })
+        .setExpirationTime(Math.floor(Date.now() / 1000) + 3600)
+        .sign(key);
+    }
+    expect(token.split(".")[0]).toMatch(/[-_]/);
+    expect((await validateJWTSignature(token, keyPair)).isValid).toBe(true);
+  });
+
+  it("signs with the requested algorithm header", async () => {
+    const token = await signJWT({}, "ES512", keyPair, new Date(Date.now() + 60_000));
+    expect(jose.decodeProtectedHeader(token).alg).toBe("ES512");
   });
 
   it("reports no key", async () => {

@@ -18,13 +18,13 @@ import {
   ChevronDown,
   Circle,
 } from "lucide-react";
-import { Algorithm, SUPPORTED_ALGORITHMS } from "../../types/activationKey";
+import { Algorithm, SUPPORTED_ALGORITHMS, ValidationResult } from "../../types/activationKey";
 import {
-  decodeJWT,
   getJwtMetadata,
+  getPayloadJson,
   signJWT,
+  toEpochSeconds,
   validateJWTSignature,
-  ValidationResult,
 } from "../../utils/activationKey";
 import { ActivationKeyMetadataDisplay } from "../activationkey/ActivationKeyMetadata";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -165,12 +165,12 @@ const ActivationKeyEditor = () => {
   }, [editorValue, jwt]);
 
   // Check if current JWT is expired
-  const isJwtExpired = useCallback(() => {
-    if (!jwt) return false;
-    const metadata = getJwtMetadata(jwt);
-    if (!metadata?.expiresAt) return false;
-    return metadata.expiresAt < new Date();
-  }, [jwt]);
+  const jwtMetadata = useMemo(() => (jwt ? getJwtMetadata(jwt) : null), [jwt]);
+
+  const isJwtExpired = useCallback(
+    () => (jwtMetadata?.expiresAt ? jwtMetadata.expiresAt < new Date() : false),
+    [jwtMetadata],
+  );
 
   // Set initial selected key when keyPairs load
   useEffect(() => {
@@ -243,14 +243,7 @@ const ActivationKeyEditor = () => {
         }
       }
 
-      const decoded = await decodeJWT(value);
-      let payloadOnly = "{}";
-      try {
-        const parsedDecoded = JSON.parse(decoded);
-        payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
-      } catch {
-        // Keep default empty object
-      }
+      const payloadOnly = getPayloadJson(value);
 
       dispatch({
         type: "SET_JWT",
@@ -311,12 +304,12 @@ const ActivationKeyEditor = () => {
 
     // Only override exp if a new expiry date is selected
     if (expiryDate) {
-      payload.exp = Math.floor(expiryDate.getTime() / 1000);
+      payload.exp = toEpochSeconds(expiryDate);
     }
 
     // Only override iat if a new issued date is selected
     if (issuedDate) {
-      payload.iat = Math.floor(issuedDate.getTime() / 1000);
+      payload.iat = toEpochSeconds(issuedDate);
     }
 
     try {
@@ -327,18 +320,9 @@ const ActivationKeyEditor = () => {
         expiryDate || (payload.exp ? new Date(payload.exp * 1000) : new Date()),
       );
 
-      const newDecoded = await decodeJWT(newToken);
-      let payloadOnly = "{}";
-      try {
-        const parsedDecoded = JSON.parse(newDecoded);
-        payloadOnly = JSON.stringify(parsedDecoded.payload || {}, null, 2);
-      } catch {
-        // Keep default
-      }
-
       dispatch({
         type: "SET_JWT",
-        payload: { jwt: newToken, editorValue: payloadOnly },
+        payload: { jwt: newToken, editorValue: getPayloadJson(newToken) },
       });
     } catch (error) {
       console.error("Signing error:", error);
@@ -442,7 +426,7 @@ const ActivationKeyEditor = () => {
       // Set exp to 1 second after iat to maintain valid temporal order
       payload.exp = iatTimestamp + 1;
     } else {
-      payload.exp = Math.floor(expiredDate.getTime() / 1000);
+      payload.exp = toEpochSeconds(expiredDate);
     }
 
     try {
@@ -736,9 +720,9 @@ const ActivationKeyEditor = () => {
                 </div>
 
                 {/* Metadata Display */}
-                {getJwtMetadata(jwt) && (
+                {jwtMetadata && (
                   <ActivationKeyMetadataDisplay
-                    metadata={getJwtMetadata(jwt)!}
+                    metadata={jwtMetadata}
                     expiryDate={expiryDate}
                     onExpiryChange={(date) => dispatch({ type: "SET_EXPIRY_DATE", payload: date })}
                     issuedDate={issuedDate}
